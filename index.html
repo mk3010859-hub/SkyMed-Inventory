@@ -7,7 +7,6 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        /* ===== COMPLETE STYLES ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; min-height: 100vh; }
         .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
@@ -265,15 +264,16 @@
     document.addEventListener('contextmenu', e => e.preventDefault());
 
     // ============================================================
-    // 🔥 SUPABASE CONFIG
+    // 🔥 SUPABASE CONFIG - YOUR NEW CREDENTIALS
     // ============================================================
     const SUPABASE_URL = 'https://nxfvrolgauzxhkadlnux.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_SwppONsYbyd6CMmyOHxEIQ__GnTdP3R';
     
+    // Initialize Supabase client - SINGLE DECLARATION
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ============================================================
-    // 🔐 LOGIN FUNCTIONS
+    // 🔥 LOGIN FUNCTIONS - FIXED
     // ============================================================
     function showAdminLogin() {
         document.getElementById('adminPasswordModal').style.display = 'flex';
@@ -332,8 +332,19 @@
     }
 
     // ============================================================
-    // MAIN APP VARIABLES
+    // MAIN APP CODE
     // ============================================================
+    const ADMIN_PWD = "YWRtaW4xMjM=";
+    const STAFF_PWD = "c3RhZmYxMjM=";
+    function decode(p) { try { return atob(p); } catch(e) { return ""; } }
+
+    function generateUniqueId() {
+        if (window.crypto && window.crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + performance.now().toString(36).replace('.', '');
+    }
+
     let currentUser = { name: '', role: 'guest' };
     let db = { medicines: [], inbound: [], outbound: [], deletedItems: [], config: {} };
     let currentFilter = "all", expiryDays = 30, currentSearch = "", categoryFilter = "all", sortBy = "name";
@@ -342,38 +353,36 @@
     let refreshInterval = null;
     let isSyncing = false;
 
-    function generateUniqueId() {
-        if (window.crypto && window.crypto.randomUUID) {
-            return crypto.randomUUID();
-        }
-        return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    }
-
     function formatDate(d) { if(!d) return '-'; let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.getMonth()]}-${date.getFullYear().toString().slice(-2)}`; }
+    function getDateTime() { return new Date().toLocaleString('en-IN', { hour12: false }); }
 
+    // ============ TOAST NOTIFICATIONS ============
     function showToast(message, type = 'info') {
         const existing = document.querySelector('.toast');
         if(existing) existing.remove();
+        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        setTimeout(() => { if(toast.parentNode) toast.remove(); }, 3000);
+        
+        setTimeout(() => {
+            if(toast.parentNode) toast.remove();
+        }, 3000);
     }
 
-    // ============================================================
-    // SUPABASE SYNC FUNCTIONS
-    // ============================================================
+    // ============ SUPABASE SYNC FUNCTIONS ============
     async function loadFromSupabase() {
         try {
             console.log('☁️ Loading data from Supabase...');
             isSyncing = true;
             
-            const [medicinesRes, inboundRes, outboundRes, deletedRes] = await Promise.all([
+            const [medicinesRes, inboundRes, outboundRes, deletedRes, configRes] = await Promise.all([
                 supabase.from('medicines').select('*'),
                 supabase.from('inbound').select('*'),
                 supabase.from('outbound').select('*'),
-                supabase.from('deleted_items').select('*')
+                supabase.from('deleted_items').select('*'),
+                supabase.from('config').select('*')
             ]);
             
             if (medicinesRes.error) throw medicinesRes.error;
@@ -386,7 +395,11 @@
             db.outbound = outboundRes.data || [];
             db.deletedItems = deletedRes.data || [];
             
-            console.log(`✅ Loaded: ${db.medicines.length} medicines`);
+            if (configRes.data && configRes.data.length > 0) {
+                db.config = configRes.data[0].value || {};
+            }
+            
+            console.log(`✅ Loaded: ${db.medicines.length} medicines, ${db.inbound.length} inbound, ${db.outbound.length} outbound`);
             isSyncing = false;
             return true;
         } catch(e) {
@@ -426,6 +439,11 @@
                 .upsert(db.deletedItems, { onConflict: 'id' });
             if (delErr) throw delErr;
             
+            const { error: cfgErr } = await supabase
+                .from('config')
+                .upsert({ key: 'main', value: db.config }, { onConflict: 'key' });
+            if (cfgErr) throw cfgErr;
+            
             console.log('✅ Data saved to Supabase');
             isSyncing = false;
             return true;
@@ -440,12 +458,11 @@
         showToast('☁️ Syncing with Supabase...', 'info');
         await loadFromSupabase();
         updateAll();
+        updateDatalists();
         showToast('✅ Data synced with Supabase cloud!', 'success');
     }
 
-    // ============================================================
-    // LOCAL STORAGE (FALLBACK)
-    // ============================================================
+    // ============ LOCAL STORAGE (FALLBACK) ============
     function saveToLocal() { localStorage.setItem('spicejetDB', JSON.stringify(db)); }
     
     function loadFromLocal() { 
@@ -455,6 +472,7 @@
                 const parsed = JSON.parse(saved);
                 db = parsed;
                 if(!db.deletedItems) db.deletedItems = []; 
+                if(!db.config) db.config = {};
                 if(!db.inbound) db.inbound = [];
                 if(!db.outbound) db.outbound = [];
                 if(!db.medicines) db.medicines = [];
@@ -465,101 +483,55 @@
         updateAll(); 
     }
 
-    // ============================================================
-    // FORCE REFRESH
-    // ============================================================
+    // ============ FORCE REFRESH ============
     function forceRefresh() {
         const time = new Date().toLocaleTimeString();
         document.getElementById('lastRefreshTime').textContent = '⏱️ Last refresh: ' + time;
         
         loadFromSupabase().then(() => {
             updateAll();
+            updateDatalists();
             showToast('✅ Data refreshed from Supabase!', 'success');
         }).catch(() => {
             loadFromLocal();
             showToast('✅ Refreshed from local storage', 'info');
         });
+        
+        const btn = document.querySelector('.refresh-btn');
+        btn.style.transform = 'rotate(360deg)';
+        btn.style.transition = 'transform 0.5s';
+        setTimeout(() => {
+            btn.style.transform = 'rotate(0deg)';
+        }, 500);
     }
 
-    // ============================================================
-    // AUTO REFRESH ON TAB VISIBILITY
-    // ============================================================
+    // ============ AUTO REFRESH ON TAB VISIBILITY ============
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             const time = new Date().toLocaleTimeString();
             document.getElementById('lastRefreshTime').textContent = '⏱️ Auto-refresh: ' + time;
-            loadFromSupabase().then(() => { updateAll(); });
+            loadFromSupabase().then(() => {
+                updateAll();
+                updateDatalists();
+            });
         }
     });
 
-    // ============================================================
-    // PERIODIC AUTO SYNC (Every 30 seconds)
-    // ============================================================
+    // ============ PERIODIC AUTO SYNC (Every 30 seconds) ============
     function startAutoSync() {
         if(refreshInterval) clearInterval(refreshInterval);
         refreshInterval = setInterval(() => {
             if (!document.hidden) {
                 saveToSupabase();
-                loadFromSupabase().then(() => { updateAll(); });
+                loadFromSupabase().then(() => {
+                    updateAll();
+                    updateDatalists();
+                });
             }
         }, 30000);
     }
 
-    // ============================================================
-    // START APP
-    // ============================================================
-    function startApp() {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'block';
-        document.getElementById('userName').textContent = currentUser.name;
-        let badge = document.getElementById('userRole');
-        badge.textContent = currentUser.role.toUpperCase();
-        if(currentUser.role === 'guest') badge.classList.add('guest');
-        if(currentUser.role === 'staff') badge.classList.add('staff');
-        
-        applyPermissions();
-        
-        loadFromSupabase().then(() => {
-            updateAll();
-        }).catch(() => {
-            loadFromLocal();
-        });
-        
-        let today = new Date(), last30 = new Date(); 
-        last30.setDate(today.getDate() - 30);
-        document.getElementById('reportFromDate').value = last30.toISOString().split('T')[0];
-        document.getElementById('reportToDate').value = today.toISOString().split('T')[0];
-        document.getElementById('outboundFromDate').value = last30.toISOString().split('T')[0];
-        document.getElementById('outboundToDate').value = today.toISOString().split('T')[0];
-        generateReport(last30, today);
-        document.getElementById('expiryDaysLabel').innerText = expiryDays;
-        document.getElementById('expiryFilterDays').value = expiryDays;
-        
-        document.getElementById('searchInput').addEventListener('input', e => { currentSearch = e.target.value.toLowerCase(); applyFiltersAndSort(); });
-        document.getElementById('clearSearchBtn').addEventListener('click', () => { document.getElementById('searchInput').value = ''; currentSearch = ''; applyFiltersAndSort(); });
-        document.getElementById('categoryFilter').addEventListener('change', () => applyDashboardFilters());
-        document.getElementById('sortByFilter').addEventListener('change', () => applyDashboardFilters());
-        
-        startAutoSync();
-        
-        if((currentUser.role === 'admin' || currentUser.role === 'staff') && !popupShown) { 
-            setTimeout(() => { document.getElementById('folderPopup').style.display = 'flex'; }, 500); 
-        }
-        
-        document.getElementById('lastRefreshTime').textContent = '⏱️ Started: ' + new Date().toLocaleTimeString();
-        showToast('✅ Welcome ' + currentUser.name + '!', 'success');
-    }
-
-    function logout() {
-        if(confirm('Logout?')) {
-            if(refreshInterval) clearInterval(refreshInterval);
-            location.reload();
-        }
-    }
-
-    // ============================================================
-    // PERMISSIONS
-    // ============================================================
+    // ============ PERMISSIONS ============
     function applyPermissions() {
         let isAdmin = currentUser.role === 'admin';
         let isStaff = currentUser.role === 'staff';
@@ -610,9 +582,7 @@
         }
     }
 
-    // ============================================================
-    // FOLDER & AUTO-SAVE FUNCTIONS
-    // ============================================================
+    // ============ FOLDER & AUTO-SAVE FUNCTIONS ============
     async function selectFolder() {
         if(currentUser.role !== 'admin' && currentUser.role !== 'staff') { 
             showToast('Only Admin and Medical Staff can select database folder!', 'error');
@@ -627,9 +597,9 @@
             document.getElementById('folderPath').innerHTML = `📁 ${currentFolderHandle.name}`;
             startAutoSave();
             await saveToFolder();
-            showToast(`✅ Folder "${currentFolderHandle.name}" selected!`, 'success');
+            showToast(`✅ Folder "${currentFolderHandle.name}" selected! Auto-save every 30 seconds.`, 'success');
         } catch(e) { 
-            console.log('Folder selection cancelled:', e);
+            console.log('Folder selection cancelled or failed:', e);
             showToast('⚠️ Folder selection cancelled', 'error');
         }
     }
@@ -758,9 +728,60 @@
         }, 30000); 
     }
 
-    // ============================================================
-    // UPDATE DATALISTS
-    // ============================================================
+    // ============ AUTH FUNCTIONS ============
+    function logout() { 
+        if(confirm('Logout?')) { 
+            if(refreshInterval) clearInterval(refreshInterval);
+            location.reload(); 
+        } 
+    }
+
+    function startApp() {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        document.getElementById('userName').textContent = currentUser.name;
+        let badge = document.getElementById('userRole');
+        badge.textContent = currentUser.role.toUpperCase();
+        if(currentUser.role === 'guest') badge.classList.add('guest');
+        if(currentUser.role === 'staff') badge.classList.add('staff');
+        
+        applyPermissions();
+        
+        loadFromSupabase().then(() => {
+            updateAll();
+            updateDatalists();
+        }).catch(() => {
+            loadFromLocal();
+            updateAll();
+            updateDatalists();
+        });
+        
+        let today = new Date(), last30 = new Date(); 
+        last30.setDate(today.getDate() - 30);
+        document.getElementById('reportFromDate').value = last30.toISOString().split('T')[0];
+        document.getElementById('reportToDate').value = today.toISOString().split('T')[0];
+        document.getElementById('outboundFromDate').value = last30.toISOString().split('T')[0];
+        document.getElementById('outboundToDate').value = today.toISOString().split('T')[0];
+        generateReport(last30, today);
+        document.getElementById('expiryDaysLabel').innerText = expiryDays;
+        document.getElementById('expiryFilterDays').value = expiryDays;
+        
+        document.getElementById('searchInput').addEventListener('input', e => { currentSearch = e.target.value.toLowerCase(); applyFiltersAndSort(); });
+        document.getElementById('clearSearchBtn').addEventListener('click', () => { document.getElementById('searchInput').value = ''; currentSearch = ''; applyFiltersAndSort(); });
+        document.getElementById('categoryFilter').addEventListener('change', () => applyDashboardFilters());
+        document.getElementById('sortByFilter').addEventListener('change', () => applyDashboardFilters());
+        
+        startAutoSync();
+        
+        if((currentUser.role === 'admin' || currentUser.role === 'staff') && !popupShown) { 
+            setTimeout(() => { document.getElementById('folderPopup').style.display = 'flex'; }, 500); 
+        }
+        
+        document.getElementById('lastRefreshTime').textContent = '⏱️ Started: ' + new Date().toLocaleTimeString();
+        showToast('✅ Welcome ' + currentUser.name + '! Data loaded from Supabase.', 'success');
+    }
+
+    // ============ UPDATE DATALISTS ============
     function updateDatalists() {
         let names = [...new Map(db.medicines.map(m => [m.name.toLowerCase(), m.name])).values()];
         let dl1 = document.getElementById('medicineNames'), dl2 = document.getElementById('medicineNamesOutbound');
@@ -768,11 +789,7 @@
         if(dl2) { dl2.innerHTML = ''; names.forEach(n => { let o = document.createElement('option'); o.value = n; dl2.appendChild(o); }); }
     }
 
-    // ============================================================
-    // DASHBOARD FILTERS
-    // ============================================================
     function setFilter(type) { currentFilter = type; applyDashboardFilters(); }
-    
     function applyDashboardFilters() {
         categoryFilter = document.getElementById('categoryFilter').value;
         expiryDays = parseInt(document.getElementById('expiryFilterDays').value);
@@ -780,16 +797,7 @@
         document.getElementById('expiryDaysLabel').innerText = expiryDays;
         applyFiltersAndSort();
     }
-    
-    function resetDashboardFilters() { 
-        document.getElementById('categoryFilter').value = 'all'; 
-        document.getElementById('expiryFilterDays').value = '30'; 
-        document.getElementById('sortByFilter').value = 'name'; 
-        currentFilter = 'all'; 
-        currentSearch = ''; 
-        document.getElementById('searchInput').value = ''; 
-        applyDashboardFilters(); 
-    }
+    function resetDashboardFilters() { document.getElementById('categoryFilter').value = 'all'; document.getElementById('expiryFilterDays').value = '30'; document.getElementById('sortByFilter').value = 'name'; currentFilter = 'all'; currentSearch = ''; document.getElementById('searchInput').value = ''; applyDashboardFilters(); }
 
     function applyFiltersAndSort() {
         let filtered = [...db.medicines];
@@ -812,8 +820,7 @@
     }
 
     function displayMedicines(medicines) {
-        let tbody = document.getElementById('medicineList'); 
-        tbody.innerHTML = '';
+        let tbody = document.getElementById('medicineList'); tbody.innerHTML = '';
         let canEdit = currentUser.role === 'admin' || currentUser.role === 'staff';
         if(!medicines.length) { tbody.innerHTML = '<tr><td colspan="9">No items</td></tr>'; return; }
         medicines.forEach(m => {
@@ -836,9 +843,6 @@
         });
     }
 
-    // ============================================================
-    // CRUD OPERATIONS
-    // ============================================================
     function editItem(id) { 
         if(currentUser.role !== 'admin' && currentUser.role !== 'staff') { showToast('Only Admin and Staff can edit!', 'error'); return; }
         let item = db.medicines.find(m => m.id === id); 
@@ -885,7 +889,7 @@
                 expiryDate: item.expiryDate, 
                 manufacturer: item.manufacturer, 
                 deletedBy: currentUser.name + ' (' + currentUser.role + ')', 
-                deletedAt: new Date().toLocaleString() 
+                deletedAt: getDateTime() 
             });
             db.medicines = db.medicines.filter(m => m.id !== id);
             updateAll(); 
@@ -944,45 +948,26 @@
         }); 
     }
 
-    // ============================================================
-    // OUTBOUND FILTERS
-    // ============================================================
     function filterOutboundHistory() {
-        let from = document.getElementById('outboundFromDate').value, 
-            to = document.getElementById('outboundToDate').value, 
-            search = document.getElementById('outboundSearch').value.toLowerCase();
+        let from = document.getElementById('outboundFromDate').value, to = document.getElementById('outboundToDate').value, search = document.getElementById('outboundSearch').value.toLowerCase();
         let filtered = [...db.outbound];
         if(from) { let fd = new Date(from); fd.setHours(0,0,0,0); filtered = filtered.filter(o => new Date(o.date) >= fd); }
         if(to) { let td = new Date(to); td.setHours(23,59,59,999); filtered = filtered.filter(o => new Date(o.date) <= td); }
         if(search) filtered = filtered.filter(o => (o.customer || '').toLowerCase().includes(search));
         filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
-        let tbody = document.getElementById('outboundList'); 
-        tbody.innerHTML = '';
+        let tbody = document.getElementById('outboundList'); tbody.innerHTML = '';
         if(!filtered.length) { tbody.innerHTML = '<tr><td colspan="6">No records</td></tr>'; return; }
-        filtered.slice(0, 100).forEach(o => { 
-            tbody.innerHTML += `<tr>
-                <td>${new Date(o.date).toLocaleDateString()}</td>
-                <td>${o.medicineName}</td>
-                <td>${o.quantity}</td>
-                <td>₹${o.total.toFixed(2)}</td>
-                <td>${o.customer || 'Medical'}</td>
-                <td>${o.source || 'Manual'}</td>
-            </tr>`; 
-        });
+        filtered.slice(0, 100).forEach(o => { tbody.innerHTML += `<tr>
+            <td>${new Date(o.date).toLocaleDateString()}</td>
+            <td>${o.medicineName}</td>
+            <td>${o.quantity}</td>
+            <td>₹${o.total.toFixed(2)}</td>
+            <td>${o.customer || 'Medical'}</td>
+            <td>${o.source || 'Manual'}</td>
+        </tr>`; });
     }
-    
-    function resetOutboundFilters() { 
-        let t = new Date(), l = new Date(); 
-        l.setDate(t.getDate() - 30); 
-        document.getElementById('outboundFromDate').value = l.toISOString().split('T')[0]; 
-        document.getElementById('outboundToDate').value = t.toISOString().split('T')[0]; 
-        document.getElementById('outboundSearch').value = ''; 
-        filterOutboundHistory(); 
-    }
+    function resetOutboundFilters() { let t = new Date(), l = new Date(); l.setDate(t.getDate() - 30); document.getElementById('outboundFromDate').value = l.toISOString().split('T')[0]; document.getElementById('outboundToDate').value = t.toISOString().split('T')[0]; document.getElementById('outboundSearch').value = ''; filterOutboundHistory(); }
 
-    // ============================================================
-    // REPORTS
-    // ============================================================
     function setPeriod(period) {
         let today = new Date(), start = new Date(), end = new Date();
         if(period === 'today') { start = new Date(); end = new Date(); }
@@ -996,52 +981,53 @@
         generateReport(start, end);
     }
     
-    function applyCustomDateRange() { 
-        let from = new Date(document.getElementById('reportFromDate').value), 
-            to = new Date(document.getElementById('reportToDate').value); 
-        if(from && to && from <= to) generateReport(from, to); 
-        else showToast('Invalid dates', 'error'); 
-    }
+    function applyCustomDateRange() { let from = new Date(document.getElementById('reportFromDate').value), to = new Date(document.getElementById('reportToDate').value); if(from && to && from <= to) generateReport(from, to); else showToast('Invalid dates', 'error'); }
     
     function generateReport(start, end) {
         if(currentUser.role !== 'admin') return;
-        reportStartDate = start; 
-        reportEndDate = end;
+        reportStartDate = start; reportEndDate = end;
         let inboundFiltered = db.inbound.filter(i => { let d = new Date(i.date); return d >= start && d <= end; });
         let outboundFiltered = db.outbound.filter(o => { let d = new Date(o.date); return d >= start && d <= end; });
         let inQty = inboundFiltered.reduce((s,i) => s + i.quantity, 0);
         let inVal = inboundFiltered.reduce((s,i) => s + (i.quantity * (db.medicines.find(m => m.name === i.medicineName)?.price || 0)), 0);
         let outQty = outboundFiltered.reduce((s,o) => s + o.quantity, 0);
         let outVal = outboundFiltered.reduce((s,o) => s + o.total, 0);
-        document.getElementById('summaryInboundQty').innerHTML = inQty; 
-        document.getElementById('summaryInboundVal').innerHTML = `₹${inVal.toFixed(2)}`;
-        document.getElementById('summaryOutboundQty').innerHTML = outQty; 
-        document.getElementById('summaryOutboundVal').innerHTML = `₹${outVal.toFixed(2)}`;
-        document.getElementById('summaryNetQty').innerHTML = inQty - outQty; 
-        document.getElementById('summaryNetVal').innerHTML = `₹${(inVal - outVal).toFixed(2)}`;
+        document.getElementById('summaryInboundQty').innerHTML = inQty; document.getElementById('summaryInboundVal').innerHTML = `₹${inVal.toFixed(2)}`;
+        document.getElementById('summaryOutboundQty').innerHTML = outQty; document.getElementById('summaryOutboundVal').innerHTML = `₹${outVal.toFixed(2)}`;
+        document.getElementById('summaryNetQty').innerHTML = inQty - outQty; document.getElementById('summaryNetVal').innerHTML = `₹${(inVal - outVal).toFixed(2)}`;
         document.getElementById('avgIssueVal').innerHTML = outboundFiltered.length ? `₹${(outVal / outboundFiltered.length).toFixed(2)}` : '₹0';
         let reportData = [];
         inboundFiltered.forEach(i => reportData.push({ date: new Date(i.date), type: 'INBOUND', item: i.medicineName, qty: i.quantity, val: i.quantity * (db.medicines.find(m => m.name === i.medicineName)?.price || 0), source: i.source || 'Manual' }));
         outboundFiltered.forEach(o => reportData.push({ date: new Date(o.date), type: 'OUTBOUND', item: o.medicineName, qty: o.quantity, val: o.total, source: o.customer || 'Medical' }));
         reportData.sort((a,b) => b.date - a.date);
-        let tbody = document.getElementById('reportBody'); 
-        tbody.innerHTML = '';
-        reportData.forEach(r => { 
-            tbody.innerHTML += `<tr>
-                <td>${formatDate(r.date)}</td>
-                <td style="color:${r.type === 'INBOUND' ? 'green' : 'red'}">${r.type}</td>
-                <td>${r.item}</td>
-                <td>${r.qty}</td>
-                <td>₹${r.val.toFixed(2)}</td>
-                <td>${r.source}</td>
-            </tr>`; 
-        });
+        let tbody = document.getElementById('reportBody'); tbody.innerHTML = '';
+        reportData.forEach(r => { tbody.innerHTML += `<tr>
+            <td>${formatDate(r.date)}</td>
+            <td style="color:${r.type === 'INBOUND' ? 'green' : 'red'}">${r.type}</td>
+            <td>${r.item}</td>
+            <td>${r.qty}</td>
+            <td>₹${r.val.toFixed(2)}</td>
+            <td>${r.source}</td>
+        </tr>`; });
         if(!reportData.length) tbody.innerHTML = '<tr><td colspan="6">No transactions</td></tr>';
     }
 
-    // ============================================================
-    // EXCEL EXPORT FUNCTIONS
-    // ============================================================
+    // ============ EXCEL EXPORT FUNCTIONS ============
+    function exportAllToExcel() {
+        if(currentUser.role !== 'admin') { showToast('Only Admin can export complete report!', 'error'); return; }
+        let wb = XLSX.utils.book_new();
+        let stockData = db.medicines.map(m => ({ 'ID': String(m.id).slice(-8), 'Medical Item': m.name, 'Category': m.category, 'Stock': m.quantity, 'Price': m.price, 'Expiry': m.expiryDate }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), 'Current Stock');
+        let inboundData = db.inbound.map(i => ({ 'Date': new Date(i.date).toLocaleDateString(), 'Item': i.medicineName, 'Qty': i.quantity }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inboundData), 'Inbound History');
+        let outboundData = db.outbound.map(o => ({ 'Date': new Date(o.date).toLocaleDateString(), 'Item': o.medicineName, 'Qty': o.quantity, 'Total': o.total }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(outboundData), 'Outbound History');
+        let deletedData = db.deletedItems.map(d => ({ 'Item': d.name, 'Deleted By': d.deletedBy, 'Deleted At': d.deletedAt }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deletedData), 'Deleted Items');
+        XLSX.writeFile(wb, `SpiceJet_Complete_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showToast('✅ Excel file with 4 sheets downloaded!', 'success');
+    }
+    
     function exportStockToExcel() { 
         let ws = XLSX.utils.json_to_sheet(db.medicines.map(m => ({ 'Medical Item': m.name, Category: m.category, Stock: m.quantity, Price: m.price, 'Expiry Date': m.expiryDate }))); 
         let wb = XLSX.utils.book_new(); 
@@ -1081,19 +1067,20 @@
         showToast('✅ Expired items exported!', 'success');
     }
     
-    function exportAllToExcel() {
-        if(currentUser.role !== 'admin') { showToast('Only Admin can export complete report!', 'error'); return; }
-        let wb = XLSX.utils.book_new();
-        let stockData = db.medicines.map(m => ({ 'ID': String(m.id).slice(-8), 'Medical Item': m.name, 'Category': m.category, 'Stock': m.quantity, 'Price': m.price, 'Expiry': m.expiryDate }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockData), 'Current Stock');
-        let inboundData = db.inbound.map(i => ({ 'Date': new Date(i.date).toLocaleDateString(), 'Item': i.medicineName, 'Qty': i.quantity }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inboundData), 'Inbound History');
-        let outboundData = db.outbound.map(o => ({ 'Date': new Date(o.date).toLocaleDateString(), 'Item': o.medicineName, 'Qty': o.quantity, 'Total': o.total }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(outboundData), 'Outbound History');
-        let deletedData = db.deletedItems.map(d => ({ 'Item': d.name, 'Deleted By': d.deletedBy, 'Deleted At': d.deletedAt }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deletedData), 'Deleted Items');
-        XLSX.writeFile(wb, `SpiceJet_Complete_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
-        showToast('✅ Excel file with 4 sheets downloaded!', 'success');
+    function exportInboundToExcel() { 
+        let ws = XLSX.utils.json_to_sheet(db.inbound.map(i => ({ Date: new Date(i.date).toLocaleDateString(), 'Medical Item': i.medicineName, Quantity: i.quantity, Source: i.source || 'Manual' }))); 
+        let wb = XLSX.utils.book_new(); 
+        XLSX.utils.book_append_sheet(wb, ws, 'Inbound History'); 
+        XLSX.writeFile(wb, `SpiceJet_Inbound_${new Date().toISOString().split('T')[0]}.xlsx`); 
+        showToast('✅ Inbound history exported!', 'success');
+    }
+    
+    function exportOutboundToExcel() { 
+        let ws = XLSX.utils.json_to_sheet(db.outbound.map(o => ({ Date: new Date(o.date).toLocaleDateString(), 'Medical Item': o.medicineName, Quantity: o.quantity, 'Total (₹)': o.total.toFixed(2), 'Issued To': o.customer || 'Medical Department' }))); 
+        let wb = XLSX.utils.book_new(); 
+        XLSX.utils.book_append_sheet(wb, ws, 'Outbound History'); 
+        XLSX.writeFile(wb, `SpiceJet_Outbound_${new Date().toISOString().split('T')[0]}.xlsx`); 
+        showToast('✅ Outbound history exported!', 'success');
     }
     
     function exportDeletedToExcel() { 
@@ -1258,9 +1245,7 @@
         showToast('✅ Report exported!', 'success');
     }
 
-    // ============================================================
-    // UPDATE ALL
-    // ============================================================
+    // ============ UPDATE ALL FUNCTION ============
     function updateAll() {
         document.getElementById('totalMedicines').innerHTML = db.medicines.length;
         document.getElementById('lowStock').innerHTML = db.medicines.filter(m => m.quantity < 10).length;
@@ -1301,6 +1286,7 @@
         if(currentUser.role === 'admin') generateReport(reportStartDate || new Date(new Date().setDate(new Date().getDate() - 30)), reportEndDate || new Date());
         if(currentFolderHandle) autoSaveToFolder();
         
+        // 🔥 Save to Supabase (async)
         saveToSupabase().then(() => {
             console.log('✅ Supabase sync completed');
         }).catch(e => {
@@ -1308,9 +1294,7 @@
         });
     }
 
-    // ============================================================
-    // EVENT LISTENERS
-    // ============================================================
+    // ============ EVENT LISTENERS ============
     document.getElementById('inboundExcelFile').addEventListener('change', e => { if(e.target.files[0]) importInboundExcel(e.target.files[0]); });
     document.getElementById('outboundExcelFile').addEventListener('change', e => { if(e.target.files[0]) importOutboundExcel(e.target.files[0]); });
     document.getElementById('downloadInboundTemplateBtn').addEventListener('click', downloadInboundTemplate);
@@ -1402,54 +1386,26 @@
         }); 
     });
 
-    // ============================================================
-    // MAKE FUNCTIONS GLOBAL
-    // ============================================================
-    window.showAdminLogin = showAdminLogin;
-    window.showStaffLogin = showStaffLogin;
-    window.verifyAdminPassword = verifyAdminPassword;
-    window.verifyStaffPassword = verifyStaffPassword;
-    window.loginAsGuest = loginAsGuest;
-    window.closeAdminModal = closeAdminModal;
-    window.closeStaffModal = closeStaffModal;
-    window.startApp = startApp;
-    window.logout = logout;
-    window.forceRefresh = forceRefresh;
-    window.fullSync = fullSync;
-    window.selectFolder = selectFolder;
-    window.saveToFolder = saveToFolder;
-    window.selectFolderFromPopup = selectFolderFromPopup;
-    window.skipFolderSelection = skipFolderSelection;
-    window.setFilter = setFilter;
-    window.applyDashboardFilters = applyDashboardFilters;
-    window.resetDashboardFilters = resetDashboardFilters;
-    window.exportStockToExcel = exportStockToExcel;
-    window.exportLowStockToExcel = exportLowStockToExcel;
-    window.exportExpiringToExcel = exportExpiringToExcel;
-    window.exportExpiredToExcel = exportExpiredToExcel;
-    window.editItem = editItem;
-    window.saveEditItem = saveEditItem;
-    window.closeEditModal = closeEditModal;
-    window.deleteItem = deleteItem;
-    window.restoreItem = restoreItem;
-    window.clearAllDeleted = clearAllDeleted;
-    window.filterOutboundHistory = filterOutboundHistory;
-    window.resetOutboundFilters = resetOutboundFilters;
-    window.setPeriod = setPeriod;
+    // Make functions global
+    window.editItem = editItem; window.saveEditItem = saveEditItem; window.closeEditModal = closeEditModal; 
+    window.deleteItem = deleteItem; window.restoreItem = restoreItem;
+    window.setFilter = setFilter; window.applyDashboardFilters = applyDashboardFilters; window.resetDashboardFilters = resetDashboardFilters;
+    window.filterOutboundHistory = filterOutboundHistory; window.resetOutboundFilters = resetOutboundFilters;
+    window.setPeriod = setPeriod; window.applyCustomDateRange = applyCustomDateRange;
+    window.exportAllToExcel = exportAllToExcel; window.exportStockToExcel = exportStockToExcel; window.exportLowStockToExcel = exportLowStockToExcel;
+    window.exportExpiringToExcel = exportExpiringToExcel; window.exportExpiredToExcel = exportExpiredToExcel; window.exportInboundToExcel = exportInboundToExcel;
+    window.exportOutboundToExcel = exportOutboundToExcel; window.exportDeletedToExcel = exportDeletedToExcel; window.exportPeriodReport = exportPeriodReport;
+    window.exportInboundDetail = exportInboundDetail; window.exportOutboundDetail = exportOutboundDetail; window.exportFullBackup = exportFullBackup;
+    window.downloadInboundTemplate = downloadInboundTemplate; window.downloadOutboundTemplate = downloadOutboundTemplate;
+    window.showAdminLogin = showAdminLogin; window.showStaffLogin = showStaffLogin; window.loginAsGuest = loginAsGuest;
+    window.verifyAdminPassword = verifyAdminPassword; window.verifyStaffPassword = verifyStaffPassword;
+    window.closeAdminModal = closeAdminModal; window.closeStaffModal = closeStaffModal;
+    window.selectFolder = selectFolder; window.saveToFolder = saveToFolder;
+    window.selectFolderFromPopup = selectFolderFromPopup; window.skipFolderSelection = skipFolderSelection;
+    window.forceRefresh = forceRefresh; window.fullSync = fullSync;
     window.applyCustomDateRange = applyCustomDateRange;
-    window.exportAllToExcel = exportAllToExcel;
-    window.exportDeletedToExcel = exportDeletedToExcel;
-    window.exportPeriodReport = exportPeriodReport;
-    window.exportInboundDetail = exportInboundDetail;
-    window.exportOutboundDetail = exportOutboundDetail;
-    window.exportFullBackup = exportFullBackup;
-    window.resetAllData = resetAllData;
-    window.downloadInboundTemplate = downloadInboundTemplate;
-    window.downloadOutboundTemplate = downloadOutboundTemplate;
-    window.exportCurrentStock = exportCurrentStock;
-    window.exportSalesReport = exportSalesReport;
 
-    console.log('✅ SkyMed App Loaded Successfully!');
+    console.log('✅ SpiceJet SkyMed loaded with Supabase integration!');
     console.log('☁️ Supabase URL:', SUPABASE_URL);
 </script>
 </body>
