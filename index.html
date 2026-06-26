@@ -10,14 +10,13 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; min-height: 100vh; }
         .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
-        .login-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-box { background: white; padding: 50px; border-radius: 20px; width: 420px; max-width: 90%; text-align: center; }
-        .login-box h1 { color: #667eea; margin-bottom: 10px; font-size: 28px; }
-        .login-btn { width: 100%; padding: 14px; margin: 10px 0; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .login-btn:hover { opacity: 0.9; }
-        .guest-btn { background: #48bb78; }
-        .staff-login-btn { background: #17a2b8; }
-        .error-msg { color: #e53e3e; margin-top: 10px; }
+        .login-container { display: none; }
+        .login-box { display: none; }
+        .login-btn { display: none; }
+        .guest-btn { display: none; }
+        .staff-login-btn { display: none; }
+        .error-msg { display: none; }
+        .modal { display: none !important; }
         header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; position: relative; }
         .header-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .user-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -67,11 +66,11 @@
         .edit-btn { background: #ffc107; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; margin: 2px; }
         .delete-btn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
         .restore-btn { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto; }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-        .save-edit-btn { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .cancel-edit-btn { background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .modal { display: none !important; }
+        .modal-content { display: none; }
+        .modal-buttons { display: none; }
+        .save-edit-btn { display: none; }
+        .cancel-edit-btn { display: none; }
         .excel-section { background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 10px; margin-bottom: 30px; }
         .excel-buttons { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
         .excel-btn { background: #1e7e34; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -115,8 +114,8 @@
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
-<div id="loginScreen" class="login-container">
+<!-- ===== LOGIN SCREEN - HIDDEN ===== -->
+<div id="loginScreen" class="login-container" style="display:none;">
     <div class="login-box">
         <h1>✈️ SpiceJet SkyMed</h1>
         <p>SpiceJet Medical Department | Complete Store Management</p>
@@ -139,13 +138,13 @@
     </div>
 </div>
 
-<!-- ===== MODALS ===== -->
-<div id="adminPasswordModal" class="modal"><div class="modal-content"><h3>🔐 Admin Login</h3><input type="password" id="adminPasswordInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Password"><div class="modal-buttons"><button class="save-edit-btn" onclick="verifyAdminPassword()">Login</button><button class="cancel-edit-btn" onclick="closeAdminModal()">Cancel</button></div></div></div>
-<div id="staffPasswordModal" class="modal"><div class="modal-content"><h3>👨‍⚕️ Staff Login</h3><input type="password" id="staffPasswordInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Staff Password"><input type="text" id="staffNameInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Your Name"><div class="modal-buttons"><button class="save-edit-btn" onclick="verifyStaffPassword()">Login</button><button class="cancel-edit-btn" onclick="closeStaffModal()">Cancel</button></div></div></div>
-<div id="editModal" class="modal"><div class="modal-content"><h3>✏️ Edit Item</h3><div class="form-group"><label>Name</label><input type="text" id="editName"></div><div class="form-group"><label>Category</label><select id="editCategory"><option>Tablet</option><option>Syrup</option><option>Injection</option><option>Capsule</option><option>Ointment</option><option>Cream</option><option>Drops</option><option>Inhaler</option><option>Spray</option><option>Sachet</option><option>General Consumable</option></select></div><div class="form-group"><label>Quantity</label><input type="number" id="editQuantity"></div><div class="form-group"><label>Price</label><input type="number" id="editPrice"></div><div class="form-group"><label>Expiry Date</label><input type="date" id="editExpiry"></div><div class="form-group"><label>Manufacturer</label><input type="text" id="editManufacturer"></div><div class="modal-buttons"><button class="save-edit-btn" onclick="saveEditItem()">Save</button><button class="cancel-edit-btn" onclick="closeEditModal()">Cancel</button></div></div></div>
+<!-- ===== MODALS - HIDDEN ===== -->
+<div id="adminPasswordModal" class="modal" style="display:none !important;"><div class="modal-content"><h3>🔐 Admin Login</h3><input type="password" id="adminPasswordInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Password"><div class="modal-buttons"><button class="save-edit-btn" onclick="verifyAdminPassword()">Login</button><button class="cancel-edit-btn" onclick="closeAdminModal()">Cancel</button></div></div></div>
+<div id="staffPasswordModal" class="modal" style="display:none !important;"><div class="modal-content"><h3>👨‍⚕️ Staff Login</h3><input type="password" id="staffPasswordInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Staff Password"><input type="text" id="staffNameInput" style="width:100%; padding:12px; margin:10px 0" placeholder="Your Name"><div class="modal-buttons"><button class="save-edit-btn" onclick="verifyStaffPassword()">Login</button><button class="cancel-edit-btn" onclick="closeStaffModal()">Cancel</button></div></div></div>
+<div id="editModal" class="modal" style="display:none !important;"><div class="modal-content"><h3>✏️ Edit Item</h3><div class="form-group"><label>Name</label><input type="text" id="editName"></div><div class="form-group"><label>Category</label><select id="editCategory"><option>Tablet</option><option>Syrup</option><option>Injection</option><option>Capsule</option><option>Ointment</option><option>Cream</option><option>Drops</option><option>Inhaler</option><option>Spray</option><option>Sachet</option><option>General Consumable</option></select></div><div class="form-group"><label>Quantity</label><input type="number" id="editQuantity"></div><div class="form-group"><label>Price</label><input type="number" id="editPrice"></div><div class="form-group"><label>Expiry Date</label><input type="date" id="editExpiry"></div><div class="form-group"><label>Manufacturer</label><input type="text" id="editManufacturer"></div><div class="modal-buttons"><button class="save-edit-btn" onclick="saveEditItem()">Save</button><button class="cancel-edit-btn" onclick="closeEditModal()">Cancel</button></div></div></div>
 
 <!-- ===== MAIN APP ===== -->
-<div id="mainApp" style="display: none;">
+<div id="mainApp" style="display: block;">
     <div class="container">
         <header>
             <div class="header-controls">
@@ -154,7 +153,7 @@
                     <p>SpiceJet Medical Department | Medicine Store Management</p>
                 </div>
                 <div class="user-info">
-                    <span>👤 <span id="userName">User</span></span>
+                    <span>👤 <span id="userName">Admin</span></span>
                     <span id="userRole" class="role-badge">Admin</span>
                     <button class="refresh-btn" onclick="forceRefresh()">🔄 Refresh</button>
                     <button class="refresh-btn" style="background:#28a745;" onclick="fullSync()">☁️ Sync</button>
@@ -264,79 +263,23 @@
     document.addEventListener('contextmenu', e => e.preventDefault());
 
     // ============================================================
-    // 🔥 SUPABASE CONFIG - YOUR NEW CREDENTIALS
+    // 🔥 SUPABASE CONFIG
     // ============================================================
     const SUPABASE_URL = 'https://nxfvrolgauzxhkadlnux.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_SwppONsYbyd6CMmyOHxEIQ__GnTdP3R';
     
-    // Initialize Supabase client - SINGLE DECLARATION
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ============================================================
-    // 🔥 LOGIN FUNCTIONS - FIXED
+    // MAIN APP VARIABLES
     // ============================================================
-    function showAdminLogin() {
-        document.getElementById('adminPasswordModal').style.display = 'flex';
-        document.getElementById('adminPasswordInput').value = '';
-        document.getElementById('loginError').innerHTML = '';
-    }
-
-    function showStaffLogin() {
-        document.getElementById('staffPasswordModal').style.display = 'flex';
-        document.getElementById('staffNameInput').value = '';
-        document.getElementById('staffPasswordInput').value = '';
-        document.getElementById('loginError').innerHTML = '';
-    }
-
-    function closeAdminModal() {
-        document.getElementById('adminPasswordModal').style.display = 'none';
-    }
-
-    function closeStaffModal() {
-        document.getElementById('staffPasswordModal').style.display = 'none';
-    }
-
-    function verifyAdminPassword() {
-        const pwd = document.getElementById('adminPasswordInput').value;
-        if (pwd === 'admin123') {
-            currentUser = { name: 'Administrator', role: 'admin' };
-            closeAdminModal();
-            startApp();
-        } else {
-            document.getElementById('loginError').innerHTML = '❌ Wrong password!';
-        }
-    }
-
-    function verifyStaffPassword() {
-        const name = document.getElementById('staffNameInput').value.trim();
-        const pwd = document.getElementById('staffPasswordInput').value;
-        if (!name) {
-            document.getElementById('loginError').innerHTML = '❌ Name is required!';
-            return;
-        }
-        if (pwd === 'staff123') {
-            currentUser = { name: name, role: 'staff' };
-            closeStaffModal();
-            startApp();
-        } else {
-            document.getElementById('loginError').innerHTML = '❌ Wrong password!';
-        }
-    }
-
-    function loginAsGuest() {
-        const name = prompt('👤 Enter your name:', 'Guest');
-        if (name !== null) {
-            currentUser = { name: name || 'Guest', role: 'guest' };
-            startApp();
-        }
-    }
-
-    // ============================================================
-    // MAIN APP CODE
-    // ============================================================
-    const ADMIN_PWD = "YWRtaW4xMjM=";
-    const STAFF_PWD = "c3RhZmYxMjM=";
-    function decode(p) { try { return atob(p); } catch(e) { return ""; } }
+    let currentUser = { name: 'Administrator', role: 'admin' };
+    let db = { medicines: [], inbound: [], outbound: [], deletedItems: [], config: {} };
+    let currentFilter = "all", expiryDays = 30, currentSearch = "", categoryFilter = "all", sortBy = "name";
+    let reportStartDate = null, reportEndDate = null;
+    let currentFolderHandle = null, autoSaveTimer = null, popupShown = false;
+    let refreshInterval = null;
+    let isSyncing = false;
 
     function generateUniqueId() {
         if (window.crypto && window.crypto.randomUUID) {
@@ -344,14 +287,6 @@
         }
         return Date.now().toString(36) + Math.random().toString(36).substr(2, 9) + performance.now().toString(36).replace('.', '');
     }
-
-    let currentUser = { name: '', role: 'guest' };
-    let db = { medicines: [], inbound: [], outbound: [], deletedItems: [], config: {} };
-    let currentFilter = "all", expiryDays = 30, currentSearch = "", categoryFilter = "all", sortBy = "name";
-    let reportStartDate = null, reportEndDate = null;
-    let currentFolderHandle = null, autoSaveTimer = null, popupShown = false;
-    let refreshInterval = null;
-    let isSyncing = false;
 
     function formatDate(d) { if(!d) return '-'; let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.getMonth()]}-${date.getFullYear().toString().slice(-2)}`; }
     function getDateTime() { return new Date().toLocaleString('en-IN', { hour12: false }); }
@@ -1386,6 +1321,29 @@
         }); 
     });
 
+    // ============================================================
+    // 🔥 START APP - DIRECT DASHBOARD (NO LOGIN)
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set user as Admin
+        currentUser = { name: 'Administrator', role: 'admin' };
+        
+        // Hide login screen
+        document.getElementById('loginScreen').style.display = 'none';
+        
+        // Show main app
+        document.getElementById('mainApp').style.display = 'block';
+        
+        // Update user info
+        document.getElementById('userName').textContent = currentUser.name;
+        let badge = document.getElementById('userRole');
+        badge.textContent = currentUser.role.toUpperCase();
+        badge.style.background = '#48bb78';
+        
+        // Start the app
+        startApp();
+    });
+
     // Make functions global
     window.editItem = editItem; window.saveEditItem = saveEditItem; window.closeEditModal = closeEditModal; 
     window.deleteItem = deleteItem; window.restoreItem = restoreItem;
@@ -1397,15 +1355,13 @@
     window.exportOutboundToExcel = exportOutboundToExcel; window.exportDeletedToExcel = exportDeletedToExcel; window.exportPeriodReport = exportPeriodReport;
     window.exportInboundDetail = exportInboundDetail; window.exportOutboundDetail = exportOutboundDetail; window.exportFullBackup = exportFullBackup;
     window.downloadInboundTemplate = downloadInboundTemplate; window.downloadOutboundTemplate = downloadOutboundTemplate;
-    window.showAdminLogin = showAdminLogin; window.showStaffLogin = showStaffLogin; window.loginAsGuest = loginAsGuest;
-    window.verifyAdminPassword = verifyAdminPassword; window.verifyStaffPassword = verifyStaffPassword;
-    window.closeAdminModal = closeAdminModal; window.closeStaffModal = closeStaffModal;
     window.selectFolder = selectFolder; window.saveToFolder = saveToFolder;
     window.selectFolderFromPopup = selectFolderFromPopup; window.skipFolderSelection = skipFolderSelection;
     window.forceRefresh = forceRefresh; window.fullSync = fullSync;
     window.applyCustomDateRange = applyCustomDateRange;
+    window.logout = logout;
 
-    console.log('✅ SpiceJet SkyMed loaded with Supabase integration!');
+    console.log('✅ SkyMed Loaded - Direct Dashboard (No Login Required)');
     console.log('☁️ Supabase URL:', SUPABASE_URL);
 </script>
 </body>
