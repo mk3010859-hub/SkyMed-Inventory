@@ -1,11 +1,9 @@
 const express = require('express');
 const router = express.Router();
-
-// ✅ SAHI PATH - database.js use karo (jo server.js mein already hai)
 const { pool } = require('../config/database');
 
 // ============================================================
-// GET - Fetch all users with permissions
+// GET - All users with permissions
 // ============================================================
 router.get('/get-requests', async (req, res) => {
     try {
@@ -36,7 +34,7 @@ router.get('/get-requests', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('❌ TiDB Fetch Error:', error);
+        console.error('❌ Fetch Error:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -45,7 +43,7 @@ router.get('/get-requests', async (req, res) => {
 });
 
 // ============================================================
-// POST - Save user permissions and status
+// POST - Save permissions & status
 // ============================================================
 router.post('/save-requests', async (req, res) => {
     try {
@@ -83,13 +81,13 @@ router.post('/save-requests', async (req, res) => {
         
         res.json({
             success: true,
-            message: `Updated ${updatedCount} users successfully`,
+            message: `Updated ${updatedCount} users`,
             updated: updatedCount,
             total: requests.length
         });
         
     } catch (error) {
-        console.error('❌ TiDB Save Error:', error);
+        console.error('❌ Save Error:', error);
         res.status(500).json({
             success: false,
             error: error.message
