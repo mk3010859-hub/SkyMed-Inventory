@@ -9,7 +9,6 @@ router.get('/get-requests', async (req, res) => {
     try {
         const connection = await connectToTiDB();
         
-        // Fetch users (excluding admins if needed)
         const [users] = await connection.execute(`
             SELECT 
                 id,
@@ -23,7 +22,6 @@ router.get('/get-requests', async (req, res) => {
             ORDER BY created_at DESC
         `);
         
-        // Parse permissions JSON
         const formattedUsers = users.map(user => ({
             ...user,
             permissions: user.permissions ? 
@@ -63,7 +61,6 @@ router.post('/save-requests', async (req, res) => {
         const connection = await connectToTiDB();
         let updatedCount = 0;
         
-        // Batch update
         for (const user of requests) {
             const permissionsJson = JSON.stringify(user.permissions || {});
             
