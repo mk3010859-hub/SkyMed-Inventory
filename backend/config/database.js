@@ -2,46 +2,48 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // ============================================================
-// TiDB Connection Pool
+// TiDB CONNECTION - DIRECT CREDENTIALS
 // ============================================================
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 4000,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'skymed',
+    host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+    port: 4000,
+    user: '2YhNuY9x9YR1dry.root',
+    password: '1dUtzHOX5FrbzmKe',
+    database: 'sys',
+    ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+    },
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    ssl: process.env.DB_SSL === 'true' ? {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true
-    } : undefined,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0
 });
 
 // ============================================================
-// Test Connection
+// TEST CONNECTION
 // ============================================================
 async function testConnection() {
     try {
         const connection = await pool.getConnection();
-        console.log('✅ TiDB connection successful');
+        console.log('✅ TiDB Connected Successfully!');
+        console.log(`📡 Host: gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000`);
+        console.log(`🗄️  Database: sys`);
         connection.release();
         return true;
     } catch (error) {
-        console.error('❌ TiDB connection failed:', error.message);
-        console.error('📋 Please check your .env configuration');
+        console.error('❌ TiDB Connection Failed:', error.message);
         return false;
     }
 }
 
 // ============================================================
-// Initialize Tables
+// INIT TABLES
 // ============================================================
 async function initTables() {
     try {
+        // Users table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT PRIMARY KEY AUTO_INCREMENT,
@@ -57,7 +59,9 @@ async function initTables() {
                 INDEX idx_status (status)
             )
         `);
+        console.log('✅ Users table ready');
 
+        // Audit logs table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS audit_logs (
                 id INT PRIMARY KEY AUTO_INCREMENT,
@@ -71,11 +75,11 @@ async function initTables() {
                 INDEX idx_created_at (created_at)
             )
         `);
+        console.log('✅ Audit logs table ready');
 
-        console.log('✅ Tables initialized successfully');
         return true;
     } catch (error) {
-        console.error('❌ Table initialization failed:', error.message);
+        console.error('❌ Table init failed:', error.message);
         return false;
     }
 }
