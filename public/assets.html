@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyMed Pro - Asset Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="js/security.js"></script>
     <style>
-        /* Same as before - keeping it compact */
         *{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,sans-serif}
         body{background:#eef2f7;display:flex;min-height:100vh}
         .sidebar{width:220px;background:#0b2a4a;color:#fff;padding:20px 0;flex-shrink:0;display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow-y:auto}
@@ -55,6 +53,8 @@
         .btn-outline{background:transparent;border:1px solid #dce4ed;color:#3a5a7a}
         .btn-outline:hover{background:#f5f8fc}
         .btn-sm{padding:2px 10px;font-size:.65rem}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:5px 14px;border-radius:30px;cursor:pointer;font-size:.75rem;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+        .btn-logout:hover{background:#a13232}
 
         .filter-bar{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:6px 12px;background:#f7faff;border-radius:10px;border:1px solid #e8edf5;margin-bottom:10px}
         .filter-bar select,.filter-bar input{padding:3px 10px;border-radius:30px;border:1px solid #dce4ed;background:#fff;font-size:.7rem}
@@ -99,15 +99,20 @@
 
         .toast{position:fixed;bottom:20px;right:20px;background:#1e8b5c;color:#fff;padding:12px 24px;border-radius:10px;font-size:.85rem;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.15)}
         .toast.error{background:#c44545}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:5px 14px;border-radius:30px;cursor:pointer;font-size:.75rem;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+        .btn-logout:hover{background:#a13232}
 
         @media(max-width:768px){.sidebar{width:60px}.sidebar .logo span,.sidebar .logo small,.sidebar .nav a span,.sidebar .user .name,.sidebar .user .role,.sidebar .folder-info span{display:none}.sidebar .nav a{padding:10px 18px;justify-content:center}.sidebar .folder-info .sub{display:none}.main{padding:12px}.form-grid{grid-template-columns:1fr 1fr}}
     </style>
 </head>
 <body>
 
+<!-- ============================================================ -->
+<!-- 🔒 SESSION CHECK                                             -->
+<!-- ============================================================ -->
 <script>
     (function() {
-        if (sessionStorage.getItem('skymed_logged_in') !== 'true') {
+        if (!localStorage.getItem('jwt_token')) {
             window.location.href = 'login.html';
         }
     })();
@@ -122,17 +127,13 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const financeSub = document.getElementById('financeSub');
-        if (financeSub) {
-            const hasActive = financeSub.querySelector('a.active');
-            if (hasActive) {
-                financeSub.classList.add('open');
-                const arrow = document.getElementById('financeArrow');
-                if (arrow) arrow.style.transform = 'rotate(180deg)';
-            }
+    function logoutUser() {
+        if (confirm('⚠️ Are you sure you want to logout?')) {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
         }
-    });
+    }
 </script>
 
 <div class="sidebar">
@@ -165,6 +166,7 @@
         <a href="imprest.html"><i class="fas fa-wallet"></i> <span>Imprest</span></a>
         <a href="deleted.html"><i class="fas fa-trash"></i> <span>Deleted</span></a>
         <a href="settings.html"><i class="fas fa-cog"></i> <span>Settings</span></a>
+        <a href="admin-requests.html"><i class="fas fa-user-check"></i> <span>Pending Requests</span></a>
     </div>
     <div class="folder-info" onclick="selectFolder()">
         <i class="fas fa-folder"></i> <span id="folderLabel">Select Folder</span>
@@ -186,6 +188,7 @@
             <button class="btn btn-outline" onclick="document.getElementById('importAssets').click()"><i class="fas fa-upload"></i> Import</button>
             <button class="btn btn-outline" onclick="manualSave()"><i class="fas fa-save"></i> Save</button>
             <input type="file" id="importAssets" accept=".csv,.xlsx" style="display:none" onchange="importAssets(event)">
+            <button class="btn btn-logout" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
 
@@ -260,6 +263,17 @@
 <script src="js/db.js"></script>
 <script>
 // ============================================================
+// LOGOUT
+// ============================================================
+function logoutUser() {
+    if (confirm('⚠️ Are you sure you want to logout?')) {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+    }
+}
+
+// ============================================================
 // DATA
 // ============================================================
 let assets = [], employees = [], dataLoaded = false;
@@ -271,22 +285,25 @@ const ASSET_CATEGORIES = [
     'Display CCTV', 'Chair', 'Other'
 ];
 
-// ============================================================
-// LOAD DATA - FIXED: Properly loading employees from db
-// ============================================================
+function formatCurrency(num) {
+    if (num === undefined || num === null || isNaN(num)) return '₹0';
+    return '₹' + parseFloat(num).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
 async function loadAssets() {
     try {
-        // 🔥 FIX: Properly load employees from db
         employees = await db.getAll('employees') || [];
         assets = await db.getAll('assets') || [];
         dataLoaded = true;
-        
-        console.log('👥 Employees loaded in Assets:', employees.length);
-        console.log('📦 Assets loaded:', assets.length);
-        
         populateFilters();
         renderAssets();
         updateStats();
+        console.log('👥 Employees loaded:', employees.length);
+        console.log('📦 Assets loaded:', assets.length);
     } catch(e) {
         console.error('Load failed:', e);
         setTimeout(loadAssets, 1000);
@@ -372,7 +389,6 @@ function renderAssets() {
         
         const assignedName = a.assignedTo ? getEmployeeName(a.assignedTo) : '-';
         
-        const historyCount = a.history ? a.history.length : 0;
         const historyPreview = a.history && a.history.length > 0 ? 
             a.history.slice(-3).map(h => `${h.action} → ${h.to || h.from || ''}`).join('; ') : '-';
 
@@ -398,7 +414,7 @@ function renderAssets() {
 }
 
 // ============================================================
-// ASSET MODAL - With Employee Dropdown from Payroll
+// ASSET MODAL
 // ============================================================
 function openAssetModal(assetId) {
     const asset = assetId ? assets.find(a => a.id === assetId) : null;
@@ -412,7 +428,6 @@ function openAssetModal(assetId) {
         `<option value="${c}" ${asset && asset.category === c ? 'selected' : ''}>${c}</option>`
     ).join('');
 
-    // 🔥 FIX: Employee dropdown from payroll data
     const empOpts = employees.map(e => 
         `<option value="${e.id}" ${asset && asset.assignedTo === e.id ? 'selected' : ''}>${e.empId} - ${e.name} (${e.base || ''})</option>`
     ).join('');
@@ -530,44 +545,54 @@ async function saveAsset() {
         updatedAt: new Date().toISOString()
     };
 
-    if (editId) {
-        const existing = assets.find(a => a.id === editId);
-        if (existing) {
-            assetData.history = existing.history || [];
-            if (existing.assignedTo !== assignedTo && assignedTo) {
+    try {
+        if (editId) {
+            const existing = assets.find(a => a.id === editId);
+            if (existing) {
+                assetData.history = existing.history || [];
+                if (existing.assignedTo !== assignedTo && assignedTo) {
+                    const emp = employees.find(e => e.id === assignedTo);
+                    assetData.history.push({
+                        action: 'Assigned',
+                        to: emp ? `${emp.empId} - ${emp.name}` : assignedTo,
+                        employeeId: assignedTo,
+                        date: finalIssueDate || new Date().toISOString().split('T')[0],
+                        remarks: 'Assigned via asset edit'
+                    });
+                }
+                const updated = { ...existing, ...assetData };
+                const saved = await db.put('assets', updated);
+                if (saved) {
+                    const index = assets.findIndex(a => a.id === editId);
+                    assets[index] = saved;
+                    showToast('✅ Asset updated!');
+                }
+            }
+        } else {
+            if (assignedTo) {
                 const emp = employees.find(e => e.id === assignedTo);
                 assetData.history.push({
                     action: 'Assigned',
                     to: emp ? `${emp.empId} - ${emp.name}` : assignedTo,
                     employeeId: assignedTo,
                     date: finalIssueDate || new Date().toISOString().split('T')[0],
-                    remarks: 'Assigned via asset edit'
+                    remarks: 'Initial assignment'
                 });
             }
-            const index = assets.findIndex(a => a.id === editId);
-            assets[index] = { ...existing, ...assetData };
-            await db.put('assets', assets[index]);
-            showToast('✅ Asset updated!');
+            const newAsset = {
+                id: generateId(),
+                ...assetData,
+                createdAt: new Date().toISOString()
+            };
+            const saved = await db.add('assets', newAsset);
+            if (saved) {
+                assets.push(saved);
+                showToast('✅ Asset added!');
+            }
         }
-    } else {
-        if (assignedTo) {
-            const emp = employees.find(e => e.id === assignedTo);
-            assetData.history.push({
-                action: 'Assigned',
-                to: emp ? `${emp.empId} - ${emp.name}` : assignedTo,
-                employeeId: assignedTo,
-                date: finalIssueDate || new Date().toISOString().split('T')[0],
-                remarks: 'Initial assignment'
-            });
-        }
-        const newAsset = {
-            id: generateId(),
-            ...assetData,
-            createdAt: new Date().toISOString()
-        };
-        assets.push(newAsset);
-        await db.put('assets', newAsset);
-        showToast('✅ Asset added!');
+    } catch(e) {
+        console.error('Save error:', e);
+        showToast('❌ Error saving: ' + e.message, true);
     }
 
     closeAssetModal();
@@ -673,66 +698,75 @@ async function saveAssignment() {
 
     if (!asset.history) asset.history = [];
 
-    if (action === 'issue') {
-        if (!employeeId) {
-            showToast('⚠️ Please select an employee!', true);
-            return;
+    try {
+        if (action === 'issue') {
+            if (!employeeId) {
+                showToast('⚠️ Please select an employee!', true);
+                return;
+            }
+            const emp = employees.find(e => e.id === employeeId);
+            asset.status = 'Issued';
+            asset.assignedTo = employeeId;
+            asset.issueDate = date;
+            asset.returnDate = '';
+            asset.history.push({
+                action: 'Issued',
+                to: emp ? `${emp.empId} - ${emp.name}` : employeeId,
+                employeeId: employeeId,
+                date: date,
+                remarks: remarks || 'Issued to employee'
+            });
+            showToast(`✅ Asset issued to ${emp ? emp.name : 'employee'}!`);
+        } 
+        else if (action === 'return') {
+            const previousEmp = asset.assignedTo;
+            const prevEmp = employees.find(e => e.id === previousEmp);
+            asset.status = 'Returned';
+            asset.returnDate = date;
+            asset.history.push({
+                action: 'Returned',
+                from: prevEmp ? `${prevEmp.empId} - ${prevEmp.name}` : previousEmp || 'Unknown',
+                date: date,
+                remarks: remarks || 'Returned from employee'
+            });
+            asset.assignedTo = '';
+            showToast('✅ Asset returned!');
+        } 
+        else if (action === 'transfer') {
+            if (!employeeId || !transferEmployeeId) {
+                showToast('⚠️ Please select both employees!', true);
+                return;
+            }
+            if (employeeId === transferEmployeeId) {
+                showToast('⚠️ Cannot transfer to the same employee!', true);
+                return;
+            }
+            const fromEmp = employees.find(e => e.id === employeeId);
+            const toEmp = employees.find(e => e.id === transferEmployeeId);
+            asset.status = 'Transferred';
+            asset.assignedTo = transferEmployeeId;
+            asset.history.push({
+                action: 'Transferred',
+                from: fromEmp ? `${fromEmp.empId} - ${fromEmp.name}` : employeeId,
+                to: toEmp ? `${toEmp.empId} - ${toEmp.name}` : transferEmployeeId,
+                fromId: employeeId,
+                toId: transferEmployeeId,
+                date: date,
+                remarks: remarks || `Transferred from ${fromEmp?.name || ''} to ${toEmp?.name || ''}`
+            });
+            showToast(`✅ Asset transferred from ${fromEmp?.name || ''} to ${toEmp?.name || ''}!`);
         }
-        const emp = employees.find(e => e.id === employeeId);
-        asset.status = 'Issued';
-        asset.assignedTo = employeeId;
-        asset.issueDate = date;
-        asset.returnDate = '';
-        asset.history.push({
-            action: 'Issued',
-            to: emp ? `${emp.empId} - ${emp.name}` : employeeId,
-            employeeId: employeeId,
-            date: date,
-            remarks: remarks || 'Issued to employee'
-        });
-        showToast(`✅ Asset issued to ${emp ? emp.name : 'employee'}!`);
-    } 
-    else if (action === 'return') {
-        const previousEmp = asset.assignedTo;
-        const prevEmp = employees.find(e => e.id === previousEmp);
-        asset.status = 'Returned';
-        asset.returnDate = date;
-        asset.history.push({
-            action: 'Returned',
-            from: prevEmp ? `${prevEmp.empId} - ${prevEmp.name}` : previousEmp || 'Unknown',
-            date: date,
-            remarks: remarks || 'Returned from employee'
-        });
-        asset.assignedTo = '';
-        showToast('✅ Asset returned!');
-    } 
-    else if (action === 'transfer') {
-        if (!employeeId || !transferEmployeeId) {
-            showToast('⚠️ Please select both employees!', true);
-            return;
-        }
-        if (employeeId === transferEmployeeId) {
-            showToast('⚠️ Cannot transfer to the same employee!', true);
-            return;
-        }
-        const fromEmp = employees.find(e => e.id === employeeId);
-        const toEmp = employees.find(e => e.id === transferEmployeeId);
-        asset.status = 'Transferred';
-        asset.assignedTo = transferEmployeeId;
-        asset.history.push({
-            action: 'Transferred',
-            from: fromEmp ? `${fromEmp.empId} - ${fromEmp.name}` : employeeId,
-            to: toEmp ? `${toEmp.empId} - ${toEmp.name}` : transferEmployeeId,
-            fromId: employeeId,
-            toId: transferEmployeeId,
-            date: date,
-            remarks: remarks || `Transferred from ${fromEmp?.name || ''} to ${toEmp?.name || ''}`
-        });
-        showToast(`✅ Asset transferred from ${fromEmp?.name || ''} to ${toEmp?.name || ''}!`);
-    }
 
-    asset.updatedAt = new Date().toISOString();
-    await db.put('assets', asset);
+        asset.updatedAt = new Date().toISOString();
+        const saved = await db.put('assets', asset);
+        if (saved) {
+            const index = assets.findIndex(a => a.id === assetId);
+            if (index !== -1) assets[index] = saved;
+        }
+    } catch(e) {
+        console.error('Assignment error:', e);
+        showToast('❌ Error: ' + e.message, true);
+    }
 
     closeAssignModal();
     renderAssets();
@@ -747,12 +781,17 @@ async function deleteAsset(id) {
     if (!confirm('⚠️ Delete this asset?')) return;
     const asset = assets.find(a => a.id === id);
     if (asset) {
-        await db.softDelete('assets', id);
-        const index = assets.findIndex(a => a.id === id);
-        if (index !== -1) assets.splice(index, 1);
-        showToast('🗑️ Asset moved to deleted records!');
-        renderAssets();
-        updateStats();
+        try {
+            await db.softDelete('assets', id);
+            const index = assets.findIndex(a => a.id === id);
+            if (index !== -1) assets.splice(index, 1);
+            showToast('🗑️ Asset moved to deleted records!');
+            renderAssets();
+            updateStats();
+        } catch(e) {
+            console.error('Delete error:', e);
+            showToast('❌ Error deleting: ' + e.message, true);
+        }
     }
 }
 
@@ -850,9 +889,11 @@ function importAssets(event) {
                         });
                     }
 
-                    assets.push(newAsset);
-                    await db.put('assets', newAsset);
-                    imported++;
+                    const saved = await db.add('assets', newAsset);
+                    if (saved) {
+                        assets.push(saved);
+                        imported++;
+                    }
                 } catch(rowErr) {
                     errors.push(`Row ${json.indexOf(row)+2}: ${rowErr.message}`);
                 }
@@ -885,7 +926,6 @@ async function manualSave() {
 }
 
 async function refreshData() {
-    await db.loadFromLocalStorage();
     await loadAssets();
     showToast('✅ Data refreshed!');
 }
@@ -915,7 +955,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await db.loadFromLocalStorage();
     await loadAssets();
     setInterval(async () => {
-        await db.loadFromLocalStorage();
         await loadAssets();
     }, 60000);
 });
