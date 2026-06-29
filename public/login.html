@@ -440,7 +440,7 @@
             loginBtn.innerHTML = '<i class="fas fa-check-circle"></i> Success! Redirecting...';
 
             setTimeout(() => {
-                // Redirect to dashboard
+                // Redirect to index
                 window.location.href = 'index.html';
             }, 800);
 
@@ -499,7 +499,7 @@
             })
             .then(res => {
                 if (res.ok) {
-                    window.location.href = 'dashboard.html';
+                    window.location.href = 'index.html';
                 } else {
                     localStorage.removeItem('jwt_token');
                     localStorage.removeItem('user');
