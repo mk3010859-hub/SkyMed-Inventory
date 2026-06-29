@@ -222,6 +222,7 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .table-card .card-header .filters select,
@@ -231,6 +232,21 @@
             border-radius: 8px;
             font-size: 13px;
             background: #f8f9fa;
+        }
+
+        .table-card .card-header .filters .btn-refresh {
+            padding: 6px 18px;
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .table-card .card-header .filters .btn-refresh:hover {
+            background: #0b5ed7;
         }
 
         /* ===== TABLE ===== */
@@ -256,6 +272,10 @@
             color: #555;
             border-bottom: 2px solid #eee;
             white-space: nowrap;
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
         }
 
         table tbody td {
@@ -271,11 +291,12 @@
         /* ===== PERMISSION BADGES ===== */
         .perm-badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
-            margin: 2px 4px 2px 0;
+            margin: 2px 3px 2px 0;
+            white-space: nowrap;
         }
 
         .perm-badge.allowed {
@@ -299,6 +320,7 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         .status-badge.pending {
@@ -346,7 +368,12 @@
             background: #c82333;
         }
 
-        /* ===== SAVE BUTTON (FIXED) ===== */
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== SAVE BUTTON ===== */
         .save-btn-container {
             margin-top: 24px;
             padding-top: 20px;
@@ -354,6 +381,7 @@
             display: flex;
             justify-content: flex-end;
             gap: 12px;
+            flex-wrap: wrap;
         }
 
         .btn-save {
@@ -371,7 +399,7 @@
             gap: 10px;
         }
 
-        .btn-save:hover {
+        .btn-save:hover:not(:disabled) {
             background: #0b5ed7;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(13, 110, 253, 0.35);
@@ -387,12 +415,21 @@
             font-size: 16px;
         }
 
+        .btn-save.secondary {
+            background: #6c757d;
+        }
+
+        .btn-save.secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
         /* ===== TOAST NOTIFICATION ===== */
         .toast-container {
             position: fixed;
             top: 30px;
             right: 30px;
             z-index: 9999;
+            max-width: 400px;
         }
 
         .toast-custom {
@@ -404,13 +441,17 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            min-width: 320px;
+            min-width: 300px;
             animation: slideIn 0.4s ease;
             margin-bottom: 12px;
         }
 
         .toast-custom.error {
             border-left-color: #dc3545;
+        }
+
+        .toast-custom.info {
+            border-left-color: #0d6efd;
         }
 
         .toast-custom i {
@@ -431,6 +472,46 @@
                 transform: translateX(0);
                 opacity: 1;
             }
+        }
+
+        /* ===== LOADING SPINNER ===== */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9998;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0d6efd;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay p {
+            color: #1a1a2e;
+            font-size: 16px;
+            font-weight: 500;
         }
 
         /* ===== RESPONSIVE ===== */
@@ -478,10 +559,45 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
+            .table-card .card-header .filters {
+                width: 100%;
+            }
+            .table-card .card-header .filters select,
+            .table-card .card-header .filters input {
+                flex: 1;
+                min-width: 120px;
+            }
+            .toast-container {
+                left: 20px;
+                right: 20px;
+                max-width: none;
+            }
+            .toast-custom {
+                min-width: auto;
+            }
+        }
+
+        /* Scrollable permission container */
+        .permissions-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            max-width: 350px;
+        }
+
+        .text-muted-small {
+            color: #999;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
+
+    <!-- ===== LOADING OVERLAY ===== -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading data from TiDB...</p>
+    </div>
 
     <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar">
@@ -491,7 +607,7 @@
             <a href="#" class="nav-item"><i class="fas fa-truck"></i><span>Master Vendor</span></a>
             <a href="#" class="nav-item"><i class="fas fa-file-signature"></i><span>Contracts</span></a>
             <a href="#" class="nav-item"><i class="fas fa-pen"></i><span>General Entry</span></a>
-            <a href="#" class="nav-item active"><i class="fas fa-clock"></i><span>Pending Requests</span><span class="badge">3</span></a>
+            <a href="#" class="nav-item active"><i class="fas fa-clock"></i><span>Pending Requests</span><span class="badge" id="pendingBadge">0</span></a>
             <a href="#" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
         </nav>
         <div style="position: absolute; bottom: 30px; width: 100%; padding: 0 20px;">
@@ -562,7 +678,7 @@
                         <option value="rejected">Rejected</option>
                     </select>
                     <input type="text" id="searchInput" placeholder="Search user..." onkeyup="applyFilters()" />
-                    <button class="btn-save" style="padding: 6px 18px; font-size: 13px;" onclick="refreshData()">
+                    <button class="btn-refresh" onclick="refreshData()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
                 </div>
@@ -572,12 +688,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Email</th>
-                            <th>Username</th>
-                            <th>Requested On</th>
-                            <th>Status</th>
-                            <th>Permissions (Tab Access)</th>
-                            <th>Actions</th>
+                            <th style="min-width:180px;">Email</th>
+                            <th style="min-width:120px;">Username</th>
+                            <th style="min-width:120px;">Requested On</th>
+                            <th style="min-width:100px;">Status</th>
+                            <th style="min-width:350px;">Permissions (Tab Access)</th>
+                            <th style="min-width:160px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="requestsTableBody">
@@ -586,19 +702,19 @@
                 </table>
             </div>
 
-            <!-- ===== SAVE BUTTON (FIXED) ===== -->
+            <!-- ===== SAVE BUTTONS ===== -->
             <div class="save-btn-container">
                 <button class="btn-save" id="saveAllBtn">
                     <i class="fas fa-save"></i> Save All Changes
                 </button>
-                <button class="btn-save" style="background: #6c757d;" id="resetBtn">
+                <button class="btn-save secondary" id="resetBtn">
                     <i class="fas fa-undo"></i> Reset
                 </button>
             </div>
         </div>
 
         <div style="margin-top: 12px; color: #888; font-size: 13px; text-align: center;">
-            <i class="fas fa-database"></i> Changes are saved locally. Super Admin can review & approve requests.
+            <i class="fas fa-database"></i> Data synced with TiDB. Super Admin can review & approve requests.
         </div>
     </div>
 
@@ -611,96 +727,117 @@
 
     <script>
         // ============================================================
-        // 1. MOCK DATA (Replace with API call)
+        // 1. ALL TABS / PERMISSIONS DEFINITION (18 TABS)
         // ============================================================
-        let requestsData = [{
-            id: 1,
-            email: 'alice@sky.com',
-            username: 'alice_w',
-            requested_on: '2026-06-25',
-            status: 'pending',
-            permissions: {
-                dashboard: 'allowed',
-                master_vendor: 'allowed',
-                contracts: 'pending',
-                general_entry: 'denied',
-                pending_requests: 'allowed',
-                settings: 'denied'
-            }
-        }, {
-            id: 2,
-            email: 'bob@sky.com',
-            username: 'bob_m',
-            requested_on: '2026-06-27',
-            status: 'active',
-            permissions: {
-                dashboard: 'allowed',
-                master_vendor: 'allowed',
-                contracts: 'allowed',
-                general_entry: 'allowed',
-                pending_requests: 'denied',
-                settings: 'denied'
-            }
-        }, {
-            id: 3,
-            email: 'carol@sky.com',
-            username: 'carol_j',
-            requested_on: '2026-06-28',
-            status: 'pending',
-            permissions: {
-                dashboard: 'allowed',
-                master_vendor: 'denied',
-                contracts: 'pending',
-                general_entry: 'denied',
-                pending_requests: 'denied',
-                settings: 'denied'
-            }
-        }, {
-            id: 4,
-            email: 'dave@sky.com',
-            username: 'dave_k',
-            requested_on: '2026-06-20',
-            status: 'rejected',
-            permissions: {
-                dashboard: 'denied',
-                master_vendor: 'denied',
-                contracts: 'denied',
-                general_entry: 'denied',
-                pending_requests: 'denied',
-                settings: 'denied'
-            }
-        }, {
-            id: 5,
-            email: 'eve@sky.com',
-            username: 'eve_r',
-            requested_on: '2026-06-29',
-            status: 'pending',
-            permissions: {
-                dashboard: 'allowed',
-                master_vendor: 'pending',
-                contracts: 'pending',
-                general_entry: 'denied',
-                pending_requests: 'denied',
-                settings: 'denied'
-            }
-        }];
+        const allTabs = [
+            { key: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+            { key: 'master_vendor', label: 'Master Vendor', icon: 'fa-truck' },
+            { key: 'contracts', label: 'Contracts', icon: 'fa-file-signature' },
+            { key: 'general_entry', label: 'General Entry', icon: 'fa-pen' },
+            { key: 'pending_requests', label: 'Pending Requests', icon: 'fa-clock' },
+            { key: 'settings', label: 'Settings', icon: 'fa-cog' },
+            { key: 'reports', label: 'Reports', icon: 'fa-chart-bar' },
+            { key: 'analytics', label: 'Analytics', icon: 'fa-chart-line' },
+            { key: 'users', label: 'User Management', icon: 'fa-users-cog' },
+            { key: 'roles', label: 'Roles & Permissions', icon: 'fa-user-shield' },
+            { key: 'audit_logs', label: 'Audit Logs', icon: 'fa-history' },
+            { key: 'system_settings', label: 'System Settings', icon: 'fa-server' },
+            { key: 'notifications', label: 'Notifications', icon: 'fa-bell' },
+            { key: 'backup', label: 'Backup & Restore', icon: 'fa-database' },
+            { key: 'api_keys', label: 'API Keys', icon: 'fa-key' },
+            { key: 'integrations', label: 'Integrations', icon: 'fa-plug' },
+            { key: 'support', label: 'Support Tickets', icon: 'fa-headset' },
+            { key: 'knowledge_base', label: 'Knowledge Base', icon: 'fa-book' }
+        ];
 
-        let originalData = JSON.parse(JSON.stringify(requestsData));
+        // Permission labels mapping
+        const permLabels = {};
+        allTabs.forEach(tab => {
+            permLabels[tab.key] = tab.label;
+        });
 
         // ============================================================
-        // 2. PERMISSION LABELS
+        // 2. STATE
         // ============================================================
-        const permLabels = {
-            dashboard: 'Dashboard',
-            master_vendor: 'Master Vendor',
-            contracts: 'Contracts',
-            general_entry: 'General Entry',
-            pending_requests: 'Pending Requests',
-            settings: 'Settings'
-        };
+        let requestsData = [];
+        let originalData = [];
+        let isLoading = false;
 
         // ============================================================
-        // 3. RENDER TABLE
+        // 3. API BASE URL
+        // ============================================================
+        const API_BASE = 'https://skymed-erp-production.up.railway.app/api';
+
+        // ============================================================
+        // 4. LOAD DATA FROM TiDB
+        // ============================================================
+        async function loadDataFromTiDB() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('show');
+
+            try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                
+                const response = await fetch(`${API_BASE}/admin/get-requests`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token && { 'Authorization': `Bearer ${token}` })
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (errorText.includes('<!DOCTYPE') || errorText.includes('<html')) {
+                        throw new Error('Session expired! Please login again.');
+                    }
+                    throw new Error(`Server error: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ Data from TiDB:', result);
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load data');
+                }
+
+                // Transform data
+                requestsData = (result.data || []).map(user => ({
+                    id: user.id || user.user_id,
+                    email: user.email || 'N/A',
+                    username: user.username || 'N/A',
+                    requested_on: user.requested_on || user.created_at || new Date().toISOString().split('T')[0],
+                    status: user.status || 'pending',
+                    permissions: user.permissions || {}
+                }));
+
+                // Ensure all tabs exist in permissions
+                requestsData = requestsData.map(user => {
+                    allTabs.forEach(tab => {
+                        if (!(tab.key in user.permissions)) {
+                            user.permissions[tab.key] = 'pending';
+                        }
+                    });
+                    return user;
+                });
+
+                originalData = JSON.parse(JSON.stringify(requestsData));
+                applyFilters();
+                updatePendingBadge();
+                showToast(`✅ Loaded ${requestsData.length} users from TiDB`, 'success');
+
+            } catch (error) {
+                console.error('❌ Load Error:', error);
+                showToast(`❌ ${error.message}`, 'error');
+                requestsData = [];
+                renderTable(requestsData);
+            } finally {
+                overlay.classList.remove('show');
+            }
+        }
+
+        // ============================================================
+        // 5. RENDER TABLE
         // ============================================================
         function renderTable(data) {
             const tbody = document.getElementById('requestsTableBody');
@@ -712,14 +849,16 @@
             }
 
             let html = '';
-            data.forEach((req, index) => {
+            data.forEach((req) => {
                 const statusClass = req.status;
                 const statusLabel = req.status.charAt(0).toUpperCase() + req.status.slice(1);
 
                 // Permission badges
-                let permHtml = '';
-                for (const [key, value] of Object.entries(req.permissions)) {
-                    const label = permLabels[key] || key;
+                let permHtml = '<div class="permissions-container">';
+                let hasPermissions = false;
+                
+                for (const tab of allTabs) {
+                    const value = req.permissions[tab.key] || 'pending';
                     let badgeClass = 'pending';
                     let icon = 'fa-clock';
                     if (value === 'allowed') {
@@ -729,9 +868,15 @@
                         badgeClass = 'denied';
                         icon = 'fa-times-circle';
                     }
-                    permHtml += `<span class="perm-badge ${badgeClass}">
-                                <i class="fas ${icon}"></i> ${label}
+                    permHtml += `<span class="perm-badge ${badgeClass}" title="${tab.label}">
+                                <i class="fas ${icon}"></i> ${tab.label}
                             </span>`;
+                    hasPermissions = true;
+                }
+                permHtml += '</div>';
+
+                if (!hasPermissions) {
+                    permHtml = '<span class="text-muted-small">No permissions set</span>';
                 }
 
                 // Action buttons (only for pending)
@@ -747,16 +892,16 @@
                             `;
                 } else {
                     actionsHtml =
-                        `<span class="text-muted" style="font-size:12px;">${req.status === 'active' ? '✅ Approved' : '❌ Rejected'}</span>`;
+                        `<span class="text-muted-small">${req.status === 'active' ? '✅ Approved' : '❌ Rejected'}</span>`;
                 }
 
                 html += `
                             <tr>
-                                <td><i class="fas fa-envelope" style="color:#888;font-size:12px;"></i> ${req.email}</td>
-                                <td><i class="fas fa-user" style="color:#888;font-size:12px;"></i> ${req.username}</td>
+                                <td><i class="fas fa-envelope" style="color:#888;font-size:12px;"></i> ${escapeHtml(req.email)}</td>
+                                <td><i class="fas fa-user" style="color:#888;font-size:12px;"></i> ${escapeHtml(req.username)}</td>
                                 <td>${req.requested_on}</td>
                                 <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                                <td style="max-width: 280px;">${permHtml}</td>
+                                <td>${permHtml}</td>
                                 <td>${actionsHtml}</td>
                             </tr>
                         `;
@@ -767,22 +912,45 @@
         }
 
         // ============================================================
-        // 4. UPDATE STATS
+        // 6. ESCAPE HTML (Security)
+        // ============================================================
+        function escapeHtml(text) {
+            if (!text) return 'N/A';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ============================================================
+        // 7. UPDATE STATS
         // ============================================================
         function updateStats(data) {
-            const total = data.length;
-            const pending = data.filter(r => r.status === 'pending').length;
-            const active = data.filter(r => r.status === 'active').length;
-            const rejected = data.filter(r => r.status === 'rejected').length;
+            const total = data ? data.length : 0;
+            const pending = data ? data.filter(r => r.status === 'pending').length : 0;
+            const active = data ? data.filter(r => r.status === 'active').length : 0;
+            const rejected = data ? data.filter(r => r.status === 'rejected').length : 0;
 
             document.getElementById('totalUsers').textContent = total;
             document.getElementById('pendingCount').textContent = pending;
             document.getElementById('activeCount').textContent = active;
             document.getElementById('rejectedCount').textContent = rejected;
+            updatePendingBadge();
         }
 
         // ============================================================
-        // 5. FILTERS
+        // 8. UPDATE PENDING BADGE
+        // ============================================================
+        function updatePendingBadge() {
+            const pending = requestsData.filter(r => r.status === 'pending').length;
+            const badge = document.getElementById('pendingBadge');
+            if (badge) {
+                badge.textContent = pending;
+                badge.style.display = pending > 0 ? 'inline' : 'none';
+            }
+        }
+
+        // ============================================================
+        // 9. FILTERS
         // ============================================================
         function applyFilters() {
             const statusFilter = document.getElementById('filterStatus').value;
@@ -805,7 +973,7 @@
         }
 
         // ============================================================
-        // 6. APPROVE / REJECT
+        // 10. APPROVE / REJECT
         // ============================================================
         function approveRequest(id) {
             const req = requestsData.find(r => r.id === id);
@@ -836,54 +1004,84 @@
         }
 
         // ============================================================
-        // 7. REFRESH DATA (Simulate API call)
+        // 11. REFRESH DATA
         // ============================================================
         function refreshData() {
-            showToast('🔄 Refreshing data...', 'info');
-            setTimeout(() => {
-                // Reset to original (simulate API fetch)
-                requestsData = JSON.parse(JSON.stringify(originalData));
-                applyFilters();
-                showToast('✅ Data refreshed successfully!', 'success');
-            }, 800);
+            loadDataFromTiDB();
         }
 
         // ============================================================
-        // 8. SAVE ALL CHANGES (FIXED)
+        // 12. SAVE TO TiDB
         // ============================================================
-        document.getElementById('saveAllBtn').addEventListener('click', function(e) {
-            e.preventDefault(); // ✅ IMPORTANT: Prevents default behavior
+        async function saveToTiDB(data) {
+            try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                
+                const response = await fetch(`${API_BASE}/admin/save-requests`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token && { 'Authorization': `Bearer ${token}` })
+                    },
+                    body: JSON.stringify({
+                        requests: data,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (errorText.includes('<!DOCTYPE') || errorText.includes('<html')) {
+                        throw new Error('Session expired! Please login again.');
+                    }
+                    throw new Error(`Server error: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ Save Success:', result);
+                return result;
+
+            } catch (error) {
+                console.error('❌ Save Error:', error);
+                throw error;
+            }
+        }
+
+        // ============================================================
+        // 13. SAVE BUTTON (FIXED)
+        // ============================================================
+        document.getElementById('saveAllBtn').addEventListener('click', async function(e) {
+            e.preventDefault();
             e.stopPropagation();
 
+            if (isLoading) return;
+
             const btn = this;
+            isLoading = true;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving to TiDB...';
 
-            // Simulate API save
-            setTimeout(() => {
-                // Save to "originalData" so refresh keeps changes
+            try {
+                const result = await saveToTiDB(requestsData);
                 originalData = JSON.parse(JSON.stringify(requestsData));
-
-                // Show success
-                showToast('✅ All changes saved successfully!', 'success');
-
+                showToast(`✅ ${result.message || 'All changes saved to TiDB!'}`, 'success');
+                updatePendingBadge();
+            } catch (error) {
+                showToast(`❌ Save failed: ${error.message}`, 'error');
+            } finally {
+                isLoading = false;
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save"></i> Save All Changes';
-
-                // Log for debugging
-                console.log('✅ Saved Data:', JSON.stringify(requestsData, null, 2));
-
-                // You can also send to API here:
-                // saveToAPI(requestsData);
-            }, 1200);
+                btn.innerHTML = originalHtml;
+            }
         });
 
         // ============================================================
-        // 9. RESET BUTTON
+        // 14. RESET BUTTON
         // ============================================================
         document.getElementById('resetBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            if (confirm('Are you sure you want to reset all changes?')) {
+            if (confirm('Are you sure you want to reset all unsaved changes?')) {
                 requestsData = JSON.parse(JSON.stringify(originalData));
                 applyFilters();
                 showToast('🔄 Reset to last saved state', 'info');
@@ -891,93 +1089,94 @@
         });
 
         // ============================================================
-        // 10. TOAST NOTIFICATION
+        // 15. TOAST NOTIFICATION
         // ============================================================
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
-            toast.className = `toast-custom ${type === 'error' ? 'error' : ''}`;
-            const icon = type === 'success' ? 'fa-check-circle' :
-                type === 'error' ? 'fa-exclamation-circle' :
-                'fa-info-circle';
-            const color = type === 'success' ? '#28a745' :
-                type === 'error' ? '#dc3545' :
-                '#0d6efd';
+            toast.className = `toast-custom ${type}`;
+            const iconMap = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                info: 'fa-info-circle'
+            };
+            const colorMap = {
+                success: '#28a745',
+                error: '#dc3545',
+                info: '#0d6efd'
+            };
+            const icon = iconMap[type] || iconMap.info;
+            const color = colorMap[type] || colorMap.info;
+            
             toast.innerHTML = `
                         <i class="fas ${icon}" style="color:${color};"></i>
                         <p class="toast-msg">${message}</p>
                     `;
             container.appendChild(toast);
+            
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100px)';
                 toast.style.transition = 'all 0.4s';
                 setTimeout(() => toast.remove(), 400);
-            }, 3000);
+            }, 4000);
         }
 
         // ============================================================
-        // 11. INIT
+        // 16. KEYBOARD SHORTCUTS
+        // ============================================================
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S = Save
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                document.getElementById('saveAllBtn').click();
+            }
+            // Ctrl+R = Refresh (but don't override browser)
+            if (e.ctrlKey && e.key === 'r') {
+                // Let browser handle it
+            }
+        });
+
+        // ============================================================
+        // 17. INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
-            // Simulate API loading
-            showToast('📊 Loading requests...', 'info');
-            setTimeout(() => {
-                renderTable(requestsData);
-                showToast('✅ Data loaded successfully!', 'success');
-            }, 600);
-        });
+            // Check if token exists
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            if (!token) {
+                showToast('⚠️ No auth token found. Please login first.', 'error');
+                // Still try to load
+            }
+            
+            // Load data from TiDB
+            loadDataFromTiDB();
 
-        // ============================================================
-        // 12. (OPTIONAL) API SAVE FUNCTION - Replace with actual API
-        // ============================================================
-        async function saveToAPI(data) {
-            try {
-                const response = await fetch('https://skymed-erp-production.up.railway.app/api/admin/save', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        // Add auth token if needed
-                        // 'Authorization': 'Bearer ' + token
-                    },
-                    body: JSON.stringify({ requests: data })
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server returned: ${errorText}`);
+            // Auto-refresh every 5 minutes
+            setInterval(() => {
+                if (!isLoading) {
+                    loadDataFromTiDB();
                 }
-
-                const result = await response.json();
-                console.log('API Save Success:', result);
-                showToast('✅ Saved to server successfully!', 'success');
-                return result;
-            } catch (error) {
-                console.error('API Save Error:', error);
-                showToast(`❌ Save failed: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-
-        // Override save button to use real API (uncomment when backend ready)
-        /*
-        document.getElementById('saveAllBtn').addEventListener('click', async function(e) {
-            e.preventDefault();
-            const btn = this;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        
-            try {
-                await saveToAPI(requestsData);
-                originalData = JSON.parse(JSON.stringify(requestsData));
-            } catch (err) {
-                // error already shown in toast
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save"></i> Save All Changes';
-            }
+            }, 300000);
         });
-        */
+
+        // ============================================================
+        // 18. GLOBAL ERROR HANDLING
+        // ============================================================
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('Global Error:', msg, error);
+            showToast(`⚠️ ${msg}`, 'error');
+            return false;
+        };
+
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled Rejection:', e.reason);
+            showToast(`⚠️ ${e.reason.message || 'Unknown error'}`, 'error');
+        });
+
+        console.log('✅ SkyMed Admin Requests v7.0 loaded');
+        console.log(`📊 ${allTabs.length} tabs configured`);
+        console.log('🔗 API:', API_BASE);
     </script>
 </body>
 </html>
