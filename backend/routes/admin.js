@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // ============================================================
 // MIDDLEWARE - CHECK IF USER IS ADMIN
@@ -13,8 +14,6 @@ async function isAdmin(req, res, next) {
             return res.status(401).json({ success: false, error: 'Unauthorized: No token' });
         }
 
-        // Token se user info nikaalo
-        const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
         
         const [users] = await pool.query(
@@ -171,41 +170,6 @@ router.post('/create-user', isAdmin, async (req, res) => {
         
     } catch (error) {
         console.error('❌ Create User Error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// ============================================================
-// POST - Update user permissions (ONLY ADMIN)
-// ============================================================
-router.post('/update-permissions', isAdmin, async (req, res) => {
-    try {
-        const { userId, permissions } = req.body;
-        
-        if (!userId || !permissions) {
-            return res.status(400).json({
-                success: false,
-                error: 'UserId and permissions required'
-            });
-        }
-        
-        const permissionsJson = JSON.stringify(permissions);
-        
-        await pool.query(
-            `UPDATE users SET permissions = ?, updated_at = NOW() WHERE id = ?`,
-            [permissionsJson, userId]
-        );
-        
-        res.json({
-            success: true,
-            message: 'Permissions updated successfully'
-        });
-        
-    } catch (error) {
-        console.error('❌ Update Permissions Error:', error);
         res.status(500).json({
             success: false,
             error: error.message
