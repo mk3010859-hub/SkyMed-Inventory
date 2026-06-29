@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyMed Pro - Advance Imprest</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="js/security.js"></script>
     <style>
-        /* Same CSS as before - keeping it compact */
         *{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,sans-serif}
         body{background:#eef2f7;display:flex;min-height:100vh}
         .sidebar{width:220px;background:#0b2a4a;color:#fff;padding:20px 0;flex-shrink:0;display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow-y:auto}
@@ -55,6 +53,8 @@
         .btn-outline{background:transparent;border:1px solid #dce4ed;color:#3a5a7a}
         .btn-outline:hover{background:#f5f8fc}
         .btn-sm{padding:2px 10px;font-size:.65rem}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:5px 14px;border-radius:30px;cursor:pointer;font-size:.75rem;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+        .btn-logout:hover{background:#a13232}
 
         .filter-bar{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:6px 12px;background:#f7faff;border-radius:10px;border:1px solid #e8edf5;margin-bottom:10px}
         .filter-bar select,.filter-bar input{padding:3px 10px;border-radius:30px;border:1px solid #dce4ed;background:#fff;font-size:.7rem}
@@ -114,6 +114,9 @@
         .toast{position:fixed;bottom:20px;right:20px;background:#1e8b5c;color:#fff;padding:12px 24px;border-radius:10px;font-size:.85rem;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.15)}
         .toast.error{background:#c44545}
 
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:5px 14px;border-radius:30px;cursor:pointer;font-size:.75rem;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+        .btn-logout:hover{background:#a13232}
+
         @media(max-width:768px){.sidebar{width:60px}.sidebar .logo span,.sidebar .logo small,.sidebar .nav a span,.sidebar .user .name,.sidebar .user .role,.sidebar .folder-info span{display:none}.sidebar .nav a{padding:10px 18px;justify-content:center}.sidebar .folder-info .sub{display:none}.main{padding:12px}.form-grid{grid-template-columns:1fr 1fr}}
     </style>
 </head>
@@ -121,7 +124,7 @@
 
 <script>
     (function() {
-        if (sessionStorage.getItem('skymed_logged_in') !== 'true') {
+        if (!localStorage.getItem('jwt_token')) {
             window.location.href = 'login.html';
         }
     })();
@@ -133,6 +136,14 @@
         sub.classList.toggle('open');
         if (arrow) {
             arrow.style.transform = sub.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    }
+
+    function logoutUser() {
+        if (confirm('⚠️ Are you sure you want to logout?')) {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
         }
     }
 
@@ -179,6 +190,7 @@
         <a href="imprest.html" class="active"><i class="fas fa-wallet"></i> <span>Imprest</span></a>
         <a href="deleted.html"><i class="fas fa-trash"></i> <span>Deleted</span></a>
         <a href="settings.html"><i class="fas fa-cog"></i> <span>Settings</span></a>
+        <a href="admin-requests.html"><i class="fas fa-user-check"></i> <span>Pending Requests</span></a>
     </div>
     <div class="folder-info" onclick="selectFolder()">
         <i class="fas fa-folder"></i> <span id="folderLabel">Select Folder</span>
@@ -200,6 +212,7 @@
             <button class="btn btn-outline" onclick="document.getElementById('importImprest').click()"><i class="fas fa-upload"></i> Import</button>
             <button class="btn btn-outline" onclick="manualSave()"><i class="fas fa-save"></i> Save</button>
             <input type="file" id="importImprest" accept=".csv,.xlsx" style="display:none" onchange="importImprest(event)">
+            <button class="btn btn-logout" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
 
@@ -277,21 +290,38 @@
 <script src="js/db.js"></script>
 <script>
 // ============================================================
-// DATA - FIXED: Properly loading employees from db
+// LOGOUT
+// ============================================================
+function logoutUser() {
+    if (confirm('⚠️ Are you sure you want to logout?')) {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+    }
+}
+
+// ============================================================
+// DATA
 // ============================================================
 let imprests = [], employees = [], dataLoaded = false;
 let editImprestId = null, billsImprestId = null;
 
+function formatCurrency(num) {
+    if (num === undefined || num === null || isNaN(num)) return '₹0';
+    return '₹' + parseFloat(num).toFixed(0);
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
 async function loadImprest() {
     try {
-        // 🔥 FIX: Properly load employees from db
         employees = await db.getAll('employees') || [];
         imprests = await db.getAll('imprests') || [];
         dataLoaded = true;
-        
-        console.log('👥 Employees loaded in Imprest:', employees.length);
+        console.log('👥 Employees loaded:', employees.length);
         console.log('📊 Imprest loaded:', imprests.length);
-        
         populateFilters();
         renderImprest();
         updateStats();
@@ -345,9 +375,9 @@ function updateStats() {
         }
     });
 
-    document.getElementById('statTotal').textContent = '₹' + totalImprest.toFixed(0);
-    document.getElementById('statBills').textContent = '₹' + totalBills.toFixed(0);
-    document.getElementById('statBalance').textContent = '₹' + totalBalance.toFixed(0);
+    document.getElementById('statTotal').textContent = formatCurrency(totalImprest);
+    document.getElementById('statBills').textContent = formatCurrency(totalBills);
+    document.getElementById('statBalance').textContent = formatCurrency(totalBalance);
     document.getElementById('statActive').textContent = activeEmployees.size;
 }
 
@@ -392,17 +422,17 @@ function renderImprest() {
             <td><strong>${i.employeeName || '-'}</strong></td>
             <td><span class="badge badge-info">${i.empId || '-'}</span></td>
             <td><span class="badge badge-purple">${i.base || '-'}</span></td>
-            <td style="font-weight:700;color:#1a5cff;">₹${imprestAmt.toFixed(0)}</td>
+            <td style="font-weight:700;color:#1a5cff;">${formatCurrency(imprestAmt)}</td>
             <td style="font-size:.65rem;">${i.issueDate || '-'}</td>
             <td style="font-size:.65rem;">${i.travelFrom || '-'}</td>
             <td style="font-size:.65rem;">${i.travelTo || '-'}</td>
             <td>${i.destination || '-'}</td>
-            <td>₹${food.toFixed(0)}</td>
-            <td>₹${accommodation.toFixed(0)}</td>
-            <td>₹${transport.toFixed(0)}</td>
-            <td>₹${other.toFixed(0)}</td>
-            <td style="font-weight:600;">₹${billTotal.toFixed(0)}</td>
-            <td style="font-weight:700;color:${balance < 0 ? '#c44545' : '#1a5cff'};">₹${balance.toFixed(0)}</td>
+            <td>${formatCurrency(food)}</td>
+            <td>${formatCurrency(accommodation)}</td>
+            <td>${formatCurrency(transport)}</td>
+            <td>${formatCurrency(other)}</td>
+            <td style="font-weight:600;">${formatCurrency(billTotal)}</td>
+            <td style="font-weight:700;color:${balance < 0 ? '#c44545' : '#1a5cff'};">${formatCurrency(balance)}</td>
             <td><span class="badge ${statusBadge}">${i.status || 'Active'}</span></td>
             <td>
                 <button class="btn btn-primary btn-sm" onclick="editImprest('${i.id}')"><i class="fas fa-edit"></i></button>
@@ -431,14 +461,14 @@ function renderImprest() {
 
     html += `<tr class="total-row">
         <td colspan="3" style="text-align:right;">GRAND TOTAL</td>
-        <td>₹${grandImprest.toFixed(0)}</td>
+        <td>${formatCurrency(grandImprest)}</td>
         <td colspan="4"></td>
-        <td>₹${grandFood.toFixed(0)}</td>
-        <td>₹${grandAccommodation.toFixed(0)}</td>
-        <td>₹${grandTransport.toFixed(0)}</td>
-        <td>₹${grandOther.toFixed(0)}</td>
-        <td>₹${grandBills.toFixed(0)}</td>
-        <td style="color:${grandBalance < 0 ? '#c44545' : '#1a5cff'};">₹${grandBalance.toFixed(0)}</td>
+        <td>${formatCurrency(grandFood)}</td>
+        <td>${formatCurrency(grandAccommodation)}</td>
+        <td>${formatCurrency(grandTransport)}</td>
+        <td>${formatCurrency(grandOther)}</td>
+        <td>${formatCurrency(grandBills)}</td>
+        <td style="color:${grandBalance < 0 ? '#c44545' : '#1a5cff'};">${formatCurrency(grandBalance)}</td>
         <td colspan="2"></td>
     </tr>`;
 
@@ -446,7 +476,7 @@ function renderImprest() {
 }
 
 // ============================================================
-// IMPREST MODAL - Complete Edit with all fields
+// IMPREST MODAL
 // ============================================================
 function openImprestModal(imprestId) {
     const imprest = imprestId ? imprests.find(i => i.id === imprestId) : null;
@@ -456,7 +486,6 @@ function openImprestModal(imprestId) {
         '<i class="fas fa-edit"></i> Edit Imprest' : 
         '<i class="fas fa-plus"></i> New Imprest';
 
-    // 🔥 Employee dropdown from payroll data
     const empOpts = employees.map(e => 
         `<option value="${e.id}" ${imprest && imprest.employeeId === e.id ? 'selected' : ''}>${e.empId} - ${e.name} (${e.base || ''})</option>`
     ).join('');
@@ -557,32 +586,41 @@ async function saveImprest() {
         updatedAt: new Date().toISOString()
     };
 
-    if (editId) {
-        const existing = imprests.find(i => i.id === editId);
-        if (existing) {
-            // Preserve existing bills
-            imprestData.bills = existing.bills || [];
-            imprestData.foodTotal = existing.foodTotal || 0;
-            imprestData.accommodationTotal = existing.accommodationTotal || 0;
-            imprestData.transportTotal = existing.transportTotal || 0;
-            imprestData.otherTotal = existing.otherTotal || 0;
-            imprestData.billTotal = existing.billTotal || 0;
-            imprestData.balance = existing.balance || imprestAmount;
-            
-            const index = imprests.findIndex(i => i.id === editId);
-            imprests[index] = { ...existing, ...imprestData };
-            await db.put('imprests', imprests[index]);
-            showToast('✅ Imprest updated!');
+    try {
+        if (editId) {
+            const existing = imprests.find(i => i.id === editId);
+            if (existing) {
+                imprestData.bills = existing.bills || [];
+                imprestData.foodTotal = existing.foodTotal || 0;
+                imprestData.accommodationTotal = existing.accommodationTotal || 0;
+                imprestData.transportTotal = existing.transportTotal || 0;
+                imprestData.otherTotal = existing.otherTotal || 0;
+                imprestData.billTotal = existing.billTotal || 0;
+                imprestData.balance = existing.balance || imprestAmount;
+                
+                const updated = { ...existing, ...imprestData };
+                const saved = await db.put('imprests', updated);
+                if (saved) {
+                    const index = imprests.findIndex(i => i.id === editId);
+                    if (index !== -1) imprests[index] = saved;
+                    showToast('✅ Imprest updated!');
+                }
+            }
+        } else {
+            const newImprest = {
+                id: generateId(),
+                ...imprestData,
+                createdAt: new Date().toISOString()
+            };
+            const saved = await db.add('imprests', newImprest);
+            if (saved) {
+                imprests.push(saved);
+                showToast('✅ Imprest created!');
+            }
         }
-    } else {
-        const newImprest = {
-            id: generateId(),
-            ...imprestData,
-            createdAt: new Date().toISOString()
-        };
-        imprests.push(newImprest);
-        await db.put('imprests', newImprest);
-        showToast('✅ Imprest created!');
+    } catch(e) {
+        console.error('Save error:', e);
+        showToast('❌ Error: ' + e.message, true);
     }
 
     closeImprestModal();
@@ -616,7 +654,7 @@ function openBillsModal(imprestId) {
             billsHtml += `<div class="bill-entry">
                 <div class="bill-row">
                     <span class="bill-category-badge ${catBadge}">${b.category || 'Other'}</span>
-                    <span style="font-weight:600;">₹${(b.amount || 0).toFixed(0)}</span>
+                    <span style="font-weight:600;">${formatCurrency(b.amount)}</span>
                     <span style="font-size:.65rem;color:#7a8fa5;">${b.description || ''}</span>
                     <span style="font-size:.6rem;">${b.date || ''}</span>
                     <span class="remove-bill" onclick="removeBillFromList('${imprestId}', ${idx})" title="Remove this bill"><i class="fas fa-times"></i></span>
@@ -632,8 +670,8 @@ function openBillsModal(imprestId) {
     document.getElementById('billsModalBody').innerHTML = `
         <div style="background:#f7faff;padding:10px;border-radius:8px;margin-bottom:12px;font-size:.8rem;">
             <strong>Employee:</strong> ${imprest.employeeName} (${imprest.empId})<br>
-            <strong>Imprest Amount:</strong> ₹${(imprest.imprestAmount || 0).toFixed(0)}<br>
-            <strong>Current Balance:</strong> <span style="color:${currentBalance < 0 ? '#c44545' : '#1a5cff'};font-weight:700;">₹${currentBalance.toFixed(0)}</span>
+            <strong>Imprest Amount:</strong> ${formatCurrency(imprest.imprestAmount)}<br>
+            <strong>Current Balance:</strong> <span style="color:${currentBalance < 0 ? '#c44545' : '#1a5cff'};font-weight:700;">${formatCurrency(currentBalance)}</span>
         </div>
 
         <div class="form-grid">
@@ -667,11 +705,11 @@ function openBillsModal(imprestId) {
             ${billsHtml}
         </div>
         <div class="bill-summary" style="margin-top:8px;">
-            <span>🍔 Food: ₹${currentFood.toFixed(0)}</span>
-            <span>🏨 Accommodation: ₹${currentAccommodation.toFixed(0)}</span>
-            <span>🚗 Transport: ₹${currentTransport.toFixed(0)}</span>
-            <span>📦 Other: ₹${currentOther.toFixed(0)}</span>
-            <span class="balance">💰 Balance: ₹${currentBalance.toFixed(0)}</span>
+            <span>🍔 Food: ${formatCurrency(currentFood)}</span>
+            <span>🏨 Accommodation: ${formatCurrency(currentAccommodation)}</span>
+            <span>🚗 Transport: ${formatCurrency(currentTransport)}</span>
+            <span>📦 Other: ${formatCurrency(currentOther)}</span>
+            <span class="balance">💰 Balance: ${formatCurrency(currentBalance)}</span>
         </div>
 
         <input type="hidden" id="f_billsImprestId" value="${imprestId}">
@@ -703,7 +741,7 @@ async function addBillToImprest() {
 
     const currentBalance = imprest.balance || imprest.imprestAmount || 0;
     if (amount > currentBalance) {
-        showToast(`⚠️ Insufficient balance! Available: ₹${currentBalance.toFixed(0)}`, true);
+        showToast(`⚠️ Insufficient balance! Available: ${formatCurrency(currentBalance)}`, true);
         return;
     }
 
@@ -730,16 +768,25 @@ async function addBillToImprest() {
         imprest.status = 'Closed';
     }
 
-    await db.put('imprests', imprest);
+    try {
+        const saved = await db.put('imprests', imprest);
+        if (saved) {
+            const index = imprests.findIndex(i => i.id === imprestId);
+            if (index !== -1) imprests[index] = saved;
+        }
+    } catch(e) {
+        console.error('Save error:', e);
+        showToast('❌ Error: ' + e.message, true);
+    }
 
     document.getElementById('f_billAmount').value = '';
     document.getElementById('f_billDesc').value = '';
-    document.getElementById('billStatus').textContent = `✅ ${category} bill of ₹${amount.toFixed(0)} added! Balance: ₹${imprest.balance.toFixed(0)}`;
+    document.getElementById('billStatus').textContent = `✅ ${category} bill of ${formatCurrency(amount)} added! Balance: ${formatCurrency(imprest.balance)}`;
 
     await renderImprest();
     updateStats();
     openBillsModal(imprestId);
-    showToast(`✅ ${category} bill of ₹${amount.toFixed(0)} added!`);
+    showToast(`✅ ${category} bill of ${formatCurrency(amount)} added!`);
 }
 
 async function removeBillFromList(imprestId, index) {
@@ -771,11 +818,21 @@ async function removeBillFromList(imprestId, index) {
         imprest.status = 'Active';
     }
 
-    await db.put('imprests', imprest);
+    try {
+        const saved = await db.put('imprests', imprest);
+        if (saved) {
+            const index2 = imprests.findIndex(i => i.id === imprestId);
+            if (index2 !== -1) imprests[index2] = saved;
+        }
+    } catch(e) {
+        console.error('Save error:', e);
+        showToast('❌ Error: ' + e.message, true);
+    }
+
     await renderImprest();
     updateStats();
     openBillsModal(imprestId);
-    showToast(`🗑️ Bill removed! Balance: ₹${imprest.balance.toFixed(0)}`);
+    showToast(`🗑️ Bill removed! Balance: ${formatCurrency(imprest.balance)}`);
 }
 
 function closeBillsModal() {
@@ -791,12 +848,17 @@ async function deleteImprest(id) {
     if (!confirm('⚠️ Delete this imprest record?')) return;
     const imprest = imprests.find(i => i.id === id);
     if (imprest) {
-        await db.softDelete('imprests', id);
-        const index = imprests.findIndex(i => i.id === id);
-        if (index !== -1) imprests.splice(index, 1);
-        showToast('🗑️ Imprest moved to deleted records!');
-        renderImprest();
-        updateStats();
+        try {
+            await db.softDelete('imprests', id);
+            const index = imprests.findIndex(i => i.id === id);
+            if (index !== -1) imprests.splice(index, 1);
+            showToast('🗑️ Imprest moved to deleted records!');
+            renderImprest();
+            updateStats();
+        } catch(e) {
+            console.error('Delete error:', e);
+            showToast('❌ Error: ' + e.message, true);
+        }
     }
 }
 
@@ -893,9 +955,11 @@ function importImprest(event) {
                                            newImprest.transportTotal + newImprest.otherTotal;
                     newImprest.balance = newImprest.imprestAmount - newImprest.billTotal;
 
-                    imprests.push(newImprest);
-                    await db.put('imprests', newImprest);
-                    imported++;
+                    const saved = await db.add('imprests', newImprest);
+                    if (saved) {
+                        imprests.push(saved);
+                        imported++;
+                    }
                 } catch(rowErr) {
                     errors.push(`Row ${json.indexOf(row)+2}: ${rowErr.message}`);
                 }
@@ -928,7 +992,6 @@ async function manualSave() {
 }
 
 async function refreshData() {
-    await db.loadFromLocalStorage();
     await loadImprest();
     showToast('✅ Data refreshed!');
 }
@@ -958,7 +1021,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await db.loadFromLocalStorage();
     await loadImprest();
     setInterval(async () => {
-        await db.loadFromLocalStorage();
         await loadImprest();
     }, 60000);
 });
