@@ -1,15 +1,12 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// ============================================================
-// TiDB CONNECTION - DIRECT CREDENTIALS
-// ============================================================
 const pool = mysql.createPool({
     host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
     port: 4000,
     user: '2YhNuY9x9YR1dry.root',
     password: '1dUtzHOX5FrbzmKe',
-    database: 'sys',
+    database: 'skymed_db',  // ✅ YAHAN CHANGE KARO (sys ki jagah)
     ssl: {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true
@@ -21,15 +18,11 @@ const pool = mysql.createPool({
     keepAliveInitialDelay: 0
 });
 
-// ============================================================
-// TEST CONNECTION
-// ============================================================
 async function testConnection() {
     try {
         const connection = await pool.getConnection();
         console.log('✅ TiDB Connected Successfully!');
-        console.log(`📡 Host: gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000`);
-        console.log(`🗄️  Database: sys`);
+        console.log('🗄️  Database: skymed_db');
         connection.release();
         return true;
     } catch (error) {
@@ -38,45 +31,38 @@ async function testConnection() {
     }
 }
 
-// ============================================================
-// INIT TABLES
-// ============================================================
 async function initTables() {
     try {
-        // Users table
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                username VARCHAR(100) NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                role VARCHAR(50) DEFAULT 'user',
-                status ENUM('pending', 'active', 'rejected') DEFAULT 'pending',
-                permissions JSON DEFAULT '{}',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_email (email),
-                INDEX idx_status (status)
-            )
+        // Check if users table exists
+        const [tables] = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM information_schema.tables 
+            WHERE table_schema = 'skymed_db' 
+            AND table_name = 'users'
         `);
-        console.log('✅ Users table ready');
 
-        // Audit logs table
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                id INT PRIMARY KEY AUTO_INCREMENT,
-                user_id INT,
-                action VARCHAR(100),
-                details JSON,
-                ip_address VARCHAR(45),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-                INDEX idx_user_id (user_id),
-                INDEX idx_created_at (created_at)
-            )
-        `);
-        console.log('✅ Audit logs table ready');
-
+        if (tables[0].count === 0) {
+            console.log('📋 Creating users table...');
+            
+            await pool.query(`
+                CREATE TABLE users (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    username VARCHAR(100) NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(50) DEFAULT 'user',
+                    status ENUM('pending', 'active', 'rejected') DEFAULT 'pending',
+                    permissions JSON DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_email (email),
+                    INDEX idx_status (status)
+                )
+            `);
+            console.log('✅ Users table created');
+        } else {
+            console.log('✅ Users table already exists');
+        }
         return true;
     } catch (error) {
         console.error('❌ Table init failed:', error.message);
