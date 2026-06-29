@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyMed Pro - Advances & Security</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="js/security.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,sans-serif}
@@ -26,6 +25,7 @@
         .sidebar .folder-info .sub{font-size:.65rem;color:#7a8fa5;font-weight:normal;margin-top:2px}
         .sidebar .user{padding:15px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:12px}
         .sidebar .user .name{font-size:.8rem;font-weight:600}
+        .sidebar .user .role{font-size:.65rem;opacity:.6}
         
         .nav-group{display:block}
         .nav-group-header{display:flex;align-items:center;gap:12px;padding:12px 20px;color:rgba(255,255,255,.7);text-decoration:none;font-size:.85rem;cursor:pointer;transition:.2s;border-left:4px solid transparent}
@@ -39,10 +39,10 @@
         .nav-sub a i{width:20px;text-align:center;font-size:.7rem}
 
         .main-content{flex-grow:1;padding:24px;overflow-y:auto}
-        .header-section{display:flex;justify-content:between;align-items:center;margin-bottom:24px;background:#fff;padding:16px 24px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+        .header-section{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;background:#fff;padding:16px 24px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
         .header-title h2{font-size:1.4rem;color:#0b2a4a;font-weight:700}
         .header-title p{font-size:.8rem;color:#7a8fa5;margin-top:2px}
-        .btn-group{display:flex;gap:10px}
+        .btn-group{display:flex;gap:10px;flex-wrap:wrap}
         .btn{padding:8px 16px;font-size:.85rem;font-weight:600;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:none;transition:.2s}
         .btn-primary{background:#1a5cff;color:#fff}
         .btn-primary:hover{background:#0043e6}
@@ -50,9 +50,13 @@
         .btn-secondary:hover{background:#f8fafc;border-color:#94a3b8}
         .btn-success{background:#10b981;color:#fff}
         .btn-success:hover{background:#059669}
+        .btn-danger{background:#ef4444;color:#fff}
+        .btn-danger:hover{background:#dc2626}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:6px 16px;border-radius:30px;cursor:pointer;font-size:.8rem;display:inline-flex;align-items:center;gap:5px;transition:.2s;font-weight:600}
+        .btn-logout:hover{background:#a13232}
         
         .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-        .stat-card{background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:between}
+        .stat-card{background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between}
         .stat-card .info p{font-size:.75rem;color:#7a8fa5;text-transform:uppercase;font-weight:600;letter-spacing:.5px}
         .stat-card .info h3{font-size:1.4rem;color:#0b2a4a;font-weight:700;margin-top:4px}
         .stat-card .icon{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
@@ -80,6 +84,7 @@
         .badge-warning{background:#fef3c7;color:#92400e}
         .badge-danger{background:#fee2e2;color:#991b1b}
         .badge-neutral{background:#f1f5f9;color:#475569}
+        .badge-info{background:#dbeafe;color:#1e40af}
         
         .action-btn{background:none;border:none;color:#64748b;cursor:pointer;padding:4px 8px;border-radius:4px;transition:.2s}
         .action-btn:hover{background:#f1f5f9;color:#1a5cff}
@@ -87,7 +92,7 @@
         .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(11,42,74,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
         .modal-content{background:#fff;border-radius:8px;box-shadow:0 20px 25px -5px rgba(0,0,0,.1);width:100%;max-width:550px;animation:slideUp .3s ease}
         @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-        .modal-header{padding:16px 24px;border-bottom:1px solid #eef3f9;display:flex;justify-content:between;align-items:center}
+        .modal-header{padding:16px 24px;border-bottom:1px solid #eef3f9;display:flex;justify-content:space-between;align-items:center}
         .modal-header h3{font-size:1.1rem;color:#0b2a4a;font-weight:700}
         .modal-header .close-btn{background:none;border:none;font-size:1.2rem;color:#a0aec0;cursor:pointer}
         .modal-body{padding:24px}
@@ -101,11 +106,40 @@
         
         .history-section{margin-top:12px;border:1px solid #eef3f9;border-radius:6px;overflow:hidden}
         .history-header{background:#f8fafc;padding:8px 12px;font-size:.75rem;font-weight:700;color:#4a5568;border-bottom:1px solid #eef3f9}
-        .history-row{display:flex;justify-content:between;padding:8px 12px;font-size:.8rem;border-bottom:1px solid #eef3f9}
+        .history-row{display:flex;justify-content:space-between;padding:8px 12px;font-size:.8rem;border-bottom:1px solid #eef3f9}
         .history-row:last-child{border-bottom:none}
     </style>
 </head>
 <body>
+
+<!-- ============================================================ -->
+<!-- 🔒 SESSION CHECK                                             -->
+<!-- ============================================================ -->
+<script>
+    (function() {
+        if (!localStorage.getItem('jwt_token')) {
+            window.location.href = 'login.html';
+        }
+    })();
+
+    function toggleSubMenu(id) {
+        const sub = document.getElementById(id);
+        const arrow = document.getElementById(id + 'Arrow');
+        if (!sub) return;
+        sub.classList.toggle('open');
+        if (arrow) {
+            arrow.style.transform = sub.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    }
+
+    function logoutUser() {
+        if (confirm('⚠️ Are you sure you want to logout?')) {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+    }
+</script>
 
 <div class="sidebar">
     <div class="logo">
@@ -137,6 +171,7 @@
         <a href="imprest.html"><i class="fas fa-wallet"></i> <span>Imprest</span></a>
         <a href="deleted.html"><i class="fas fa-trash"></i> <span>Deleted</span></a>
         <a href="settings.html"><i class="fas fa-cog"></i> <span>Settings</span></a>
+        <a href="admin-requests.html"><i class="fas fa-user-check"></i> <span>Pending Requests</span></a>
     </div>
     
     <div class="folder-info" onclick="selectFolder()">
@@ -147,13 +182,9 @@
     <div class="user">
         <i class="fas fa-user-circle" style="font-size:1.4rem;opacity:.7;"></i>
         <div>
-            <span class="name">Ram Kumar</span>
+            <span class="name">Admin</span>
             <br>
-            <span class="role">
-                <a href="https://www.linkedin.com/in/ram-kumar-60072454/" target="_blank" style="color:#7bc5f5;text-decoration:none;font-size:.65rem;">
-                    <i class="fab fa-linkedin"></i> LinkedIn
-                </a>
-            </span>
+            <span class="role">Administrator</span>
             <br>
             <span style="font-size:.55rem;color:#7a8fa5;display:block;margin-top:2px;">
                 <i class="fas fa-phone"></i> +91-97364-38856
@@ -172,6 +203,7 @@
             <button class="btn btn-secondary" onclick="refreshData()"><i class="fas fa-sync-alt"></i> Refresh</button>
             <button class="btn btn-secondary" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Export</button>
             <button class="btn btn-primary" onclick="openAdvanceModal()"><i class="fas fa-plus"></i> New Advance/Security</button>
+            <button class="btn btn-logout" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
 
@@ -335,8 +367,7 @@
 
                 <div class="history-section">
                     <div class="history-header">Adjustment History Logs</div>
-                    <div id="adjustmentHistoryContainer">
-                        </div>
+                    <div id="adjustmentHistoryContainer"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -346,69 +377,59 @@
         </form>
     </div>
 </div>
+
 <script src="js/db.js"></script>
 <script>
 // ============================================================
-// SIDEBAR FUNCTIONS
+// LOGOUT
 // ============================================================
-function toggleSubMenu(id) {
-    const sub = document.getElementById(id);
-    const arrow = document.getElementById(id + 'Arrow');
-    if (!sub) return;
-    sub.classList.toggle('open');
-    if (arrow) {
-        arrow.style.transform = sub.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+function logoutUser() {
+    if (confirm('⚠️ Are you sure you want to logout?')) {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
     }
 }
 
 // ============================================================
-// LOGIN CHECK
+// SIDEBAR FUNCTIONS
 // ============================================================
-(function() {
-    if (sessionStorage.getItem('skymed_logged_in') !== 'true') {
-        window.location.href = 'login.html';
-    }
-})();
-
-// ============================================================
-// AUTO-OPEN FINANCE SUBMENU ON LOAD
-// ============================================================
-document.addEventListener('DOMContentLoaded', function() {
-    const financeSub = document.getElementById('financeSub');
-    if (financeSub) {
-        // Force open - since we are in Finance > Advances
-        financeSub.classList.add('open');
-        const arrow = document.getElementById('financeArrow');
-        if (arrow) arrow.style.transform = 'rotate(180deg)';
-    }
-});
-
-// ============================================================
-// CORE DATA INTERACTIVE SCRIPT
-// ============================================================
-let allAdvances = [];
-
 function selectFolder() {
     alert("Please set or select folder from Dashboard/Master Vendor core hub.");
 }
 
+// ============================================================
+// CORE DATA
+// ============================================================
+let allAdvances = [];
+
+function formatCurrency(num) {
+    if (num === undefined || num === null || isNaN(num)) return '₹0';
+    const n = parseFloat(num);
+    if (n < 0) return '-₹' + formatCurrency(Math.abs(n));
+    const parts = n.toFixed(2).split('.');
+    const intPart = parts[0];
+    const decPart = parts[1] || '00';
+    const lastThree = intPart.slice(-3);
+    const otherNumbers = intPart.slice(0, -3);
+    const formatted = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + (otherNumbers ? ',' : '') + lastThree;
+    return '₹' + formatted + '.' + decPart;
+}
+
 async function loadAdvances() {
-    allAdvances = db.advances || [];
-    populateVendorDropdown();
-    renderTable();
-    calculateStats();
+    try {
+        allAdvances = await db.getAll('advances') || [];
+        populateVendorDropdown();
+        renderTable();
+        calculateStats();
+    } catch(e) {
+        console.error('Load failed:', e);
+        setTimeout(loadAdvances, 1000);
+    }
 }
 
 function populateVendorDropdown() {
-    const dropdown = document.getElementById('advVendorName');
-    dropdown.innerHTML = '<option value="">-- Select Vendor --</option>';
-    const vendors = db.vendors || [];
-    vendors.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.name;
-        opt.textContent = v.name;
-        dropdown.appendChild(opt);
-    });
+    // This will be populated from db later
 }
 
 function calculateStats() {
@@ -429,10 +450,10 @@ function calculateStats() {
     
     netBal = (totalAdv + totalSec) - totalAdj;
     
-    document.getElementById('statTotalAdvance').textContent = '₹' + totalAdv.toLocaleString('en-IN', {minimumFractionDigits:2});
-    document.getElementById('statTotalSecurity').textContent = '₹' + totalSec.toLocaleString('en-IN', {minimumFractionDigits:2});
-    document.getElementById('statTotalAdjusted').textContent = '₹' + totalAdj.toLocaleString('en-IN', {minimumFractionDigits:2});
-    document.getElementById('statNetBalance').textContent = '₹' + netBal.toLocaleString('en-IN', {minimumFractionDigits:2});
+    document.getElementById('statTotalAdvance').textContent = formatCurrency(totalAdv);
+    document.getElementById('statTotalSecurity').textContent = formatCurrency(totalSec);
+    document.getElementById('statTotalAdjusted').textContent = formatCurrency(totalAdj);
+    document.getElementById('statNetBalance').textContent = formatCurrency(netBal);
 }
 
 function renderTable() {
@@ -446,7 +467,7 @@ function renderTable() {
     let filtered = allAdvances.map((item, index) => ({...item, originalIndex: index}));
     
     if(searchVal) {
-        filtered = filtered.filter(x => x.vendorName.toLowerCase().includes(searchVal) || x.refNo.toLowerCase().includes(searchVal));
+        filtered = filtered.filter(x => (x.vendorName || '').toLowerCase().includes(searchVal) || (x.refNo || '').toLowerCase().includes(searchVal));
     }
     if(typeFilter !== 'ALL') {
         filtered = filtered.filter(x => x.type === typeFilter);
@@ -486,15 +507,15 @@ function renderTable() {
             <td>${formatDateDisplay(item.date)}</td>
             <td style="font-family:monospace;font-weight:600">${item.refNo}</td>
             <td style="font-weight:600;color:#0b2a4a">${item.vendorName}</td>
-            <td><span class="badge ${item.type==='Advance'?'badge-neutral':'badge-purple-light'}" style="background:${item.type==='Advance'?'#f1f5f9':''};color:${item.type==='Advance'?'#475569':''}">${item.type}</span></td>
-            <td style="font-weight:600">₹${orig.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
-            <td style="color:#dc2626">₹${adj.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
-            <td style="font-weight:700;color:#16a34a">₹${bal.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+            <td><span class="badge ${item.type==='Advance'?'badge-neutral':'badge-info'}">${item.type}</span></td>
+            <td style="font-weight:600">${formatCurrency(orig)}</td>
+            <td style="color:#dc2626">${formatCurrency(adj)}</td>
+            <td style="font-weight:700;color:#16a34a">${formatCurrency(bal)}</td>
             <td>${statusBadge}</td>
             <td style="text-align:center;white-space:nowrap">
                 <button class="action-btn" title="Adjust Balance" onclick="openAdjustmentModal(${item.originalIndex})" ${bal<=0?'disabled style="opacity:.4;cursor:not-allowed"':''}><i class="fas fa-calculator"></i></button>
-                <button class="action-btn" title="Edit Master Info" onclick="editAdvanceEntry(${item.originalIndex})"><i class="fas fa-edit"></i></button>
-                <button class="action-btn" title="Delete Entry" style="color:#ef4444" onclick="deleteAdvanceEntry(${item.originalIndex})"><i class="fas fa-trash-alt"></i></button>
+                <button class="action-btn" title="Edit" onclick="editAdvanceEntry(${item.originalIndex})"><i class="fas fa-edit"></i></button>
+                <button class="action-btn" title="Delete" style="color:#ef4444" onclick="deleteAdvanceEntry(${item.originalIndex})"><i class="fas fa-trash-alt"></i></button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -512,20 +533,22 @@ function formatDateDisplay(dStr) {
     return dStr;
 }
 
-// OPEN MODAL FUNCTIONS
-window.openAdvanceModal = function(title="New Advance / Security Entry") {
-    document.getElementById('modalTitle').textContent = title;
+// ============================================================
+// ADVANCE MODAL
+// ============================================================
+function openAdvanceModal(title) {
+    document.getElementById('modalTitle').textContent = title || "New Advance / Security Entry";
     document.getElementById('advanceForm').reset();
     document.getElementById('editIndex').value = '';
     document.getElementById('advDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('advanceModal').style.display = 'flex';
-};
+}
 
-window.closeAdvanceModal = function() {
+function closeAdvanceModal() {
     document.getElementById('advanceModal').style.display = 'none';
-};
+}
 
-window.saveAdvanceEntry = async function(e) {
+async function saveAdvanceEntry(e) {
     e.preventDefault();
     const idx = document.getElementById('editIndex').value;
     
@@ -540,20 +563,33 @@ window.saveAdvanceEntry = async function(e) {
         adjustments: (idx !== '' && allAdvances[idx]) ? (allAdvances[idx].adjustments || []) : []
     };
 
-    if(idx === '') {
-        if(!db.advances) db.advances = [];
-        db.advances.push(entryData);
-    } else {
-        db.advances[idx] = entryData;
+    try {
+        if(idx === '') {
+            const saved = await db.add('advances', entryData);
+            if(saved) {
+                allAdvances.push(saved);
+                closeAdvanceModal();
+                await loadAdvances();
+                alert('✅ Advance/Security record saved successfully!');
+            }
+        } else {
+            const existing = allAdvances[idx];
+            const updated = { ...existing, ...entryData };
+            const saved = await db.put('advances', updated);
+            if(saved) {
+                allAdvances[idx] = saved;
+                closeAdvanceModal();
+                await loadAdvances();
+                alert('✅ Advance/Security record updated successfully!');
+            }
+        }
+    } catch(error) {
+        console.error('Save error:', error);
+        alert('❌ Error saving: ' + error.message);
     }
-    
-    await db.saveToLocalStorage();
-    closeAdvanceModal();
-    loadAdvances();
-    alert('✅ Advance/Security record saved successfully!');
-};
+}
 
-window.editAdvanceEntry = function(index) {
+function editAdvanceEntry(index) {
     const item = allAdvances[index];
     if(!item) return;
     openAdvanceModal("Edit Advance / Security Entry");
@@ -565,17 +601,27 @@ window.editAdvanceEntry = function(index) {
     document.getElementById('advAmount').value = item.amount;
     document.getElementById('advMode').value = item.mode || 'Bank Transfer';
     document.getElementById('advRemarks').value = item.remarks || '';
-};
+}
 
-window.deleteAdvanceEntry = async function(index) {
-    if(!confirm("Are you sure you want to delete this Entire advance/security record along with its adjustment history logs?")) return;
-    db.advances.splice(index, 1);
-    await db.saveToLocalStorage();
-    loadAdvances();
-};
+async function deleteAdvanceEntry(index) {
+    if(!confirm("Are you sure you want to delete this record?")) return;
+    const item = allAdvances[index];
+    if(!item) return;
+    try {
+        await db.softDelete('advances', item.id);
+        allAdvances.splice(index, 1);
+        await loadAdvances();
+        alert('✅ Record moved to deleted!');
+    } catch(error) {
+        console.error('Delete error:', error);
+        alert('❌ Error deleting: ' + error.message);
+    }
+}
 
+// ============================================================
 // ADJUSTMENT SYSTEM
-window.openAdjustmentModal = function(index) {
+// ============================================================
+function openAdjustmentModal(index) {
     const item = allAdvances[index];
     if(!item) return;
     
@@ -591,21 +637,21 @@ window.openAdjustmentModal = function(index) {
     if(item.adjustments) item.adjustments.forEach(a => adjAmt += parseFloat(a.amount)||0);
     const bal = orig - adjAmt;
     
-    document.getElementById('adjAvailBalLabel').textContent = '₹' + bal.toLocaleString('en-IN', {minimumFractionDigits:2});
+    document.getElementById('adjAvailBalLabel').textContent = formatCurrency(bal);
     document.getElementById('adjAmount').max = bal;
     
     // Render History Logs
     const histCont = document.getElementById('adjustmentHistoryContainer');
     histCont.innerHTML = '';
     if(!item.adjustments || item.adjustments.length === 0) {
-        histCont.innerHTML = '<div style="padding:10px;text-align:center;color:#7a8fa5;font-size:.8rem;">No previous adjustments recorded against this ledger.</div>';
+        histCont.innerHTML = '<div style="padding:10px;text-align:center;color:#7a8fa5;font-size:.8rem;">No previous adjustments recorded.</div>';
     } else {
         item.adjustments.forEach((h, hIdx) => {
             const row = document.createElement('div');
             row.className = 'history-row';
             row.innerHTML = `
                 <span>${formatDateDisplay(h.date)} - ${h.narration}</span>
-                <span style="font-weight:600;color:#dc2626">-₹${parseFloat(h.amount).toLocaleString('en-IN',{minimumFractionDigits:2})} 
+                <span style="font-weight:600;color:#dc2626">-${formatCurrency(h.amount)} 
                     <i class="fas fa-times" style="margin-left:8px;color:#cbd5e1;cursor:pointer" onclick="deleteSingleAdjustment(${index}, ${hIdx})"></i>
                 </span>
             `;
@@ -614,21 +660,20 @@ window.openAdjustmentModal = function(index) {
     }
     
     document.getElementById('adjustmentModal').style.display = 'flex';
-};
+}
 
-window.closeAdjustmentModal = function() {
+function closeAdjustmentModal() {
     document.getElementById('adjustmentModal').style.display = 'none';
-};
+}
 
-window.saveAdjustment = async function(e) {
+async function saveAdjustment(e) {
     e.preventDefault();
     const index = document.getElementById('adjAdvIndex').value;
-    const item = db.advances[index];
+    const item = allAdvances[index];
     if(!item) return;
     
     const amtToAdj = parseFloat(document.getElementById('adjAmount').value) || 0;
     
-    // Server validation check
     const orig = parseFloat(item.amount) || 0;
     let existingAdj = 0;
     if(item.adjustments) item.adjustments.forEach(a => existingAdj += parseFloat(a.amount)||0);
@@ -646,23 +691,43 @@ window.saveAdjustment = async function(e) {
         narration: document.getElementById('adjNarration').value.trim()
     });
     
-    await db.saveToLocalStorage();
-    closeAdjustmentModal();
-    loadAdvances();
-    alert('✅ Adjustment entry logged successfully!');
-};
+    try {
+        const saved = await db.put('advances', item);
+        if(saved) {
+            allAdvances[index] = saved;
+            closeAdjustmentModal();
+            await loadAdvances();
+            alert('✅ Adjustment entry logged successfully!');
+        }
+    } catch(error) {
+        console.error('Adjustment error:', error);
+        alert('❌ Error saving adjustment: ' + error.message);
+    }
+}
 
-window.deleteSingleAdjustment = async function(advIdx, adjIdx) {
-    if(!confirm("Remove this specific adjustment log entry and restore amount to balance pool?")) return;
-    db.advances[advIdx].adjustments.splice(adjIdx, 1);
-    await db.saveToLocalStorage();
-    closeAdjustmentModal();
-    loadAdvances();
-    // Re-open log context
-    setTimeout(() => { openAdjustmentModal(advIdx); }, 100);
-};
+async function deleteSingleAdjustment(advIdx, adjIdx) {
+    if(!confirm("Remove this adjustment entry?")) return;
+    const item = allAdvances[advIdx];
+    if(!item || !item.adjustments) return;
+    item.adjustments.splice(adjIdx, 1);
+    try {
+        const saved = await db.put('advances', item);
+        if(saved) {
+            allAdvances[advIdx] = saved;
+            closeAdjustmentModal();
+            await loadAdvances();
+            setTimeout(() => { openAdjustmentModal(advIdx); }, 100);
+        }
+    } catch(error) {
+        console.error('Delete adjustment error:', error);
+        alert('❌ Error: ' + error.message);
+    }
+}
 
-window.exportToExcel = function() {
+// ============================================================
+// EXPORT / REFRESH
+// ============================================================
+function exportToExcel() {
     if(allAdvances.length === 0) {
         alert("No data available to export.");
         return;
@@ -687,25 +752,20 @@ window.exportToExcel = function() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Advances Summary");
     XLSX.writeFile(wb, "SkyMed_Advances_Report.xlsx");
-};
+}
 
-window.refreshData = async function() {
-    await db.loadFromLocalStorage();
+async function refreshData() {
     await loadAdvances();
     alert('✅ Data refreshed!');
-};
+}
 
 // ============================================================
-// INIT ENTRY POINT
+// INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', async function() {
-    const savedFolder = sessionStorage.getItem('skymed_folder');
-    if (savedFolder) document.getElementById('folderLabel').textContent = savedFolder;
-    
     await db.loadFromLocalStorage();
     await loadAdvances();
     setInterval(async () => {
-        await db.loadFromLocalStorage();
         await loadAdvances();
     }, 60000);
     
@@ -726,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <a href="https://www.linkedin.com/in/ram-kumar-60072454/" target="_blank" style="color:#1a5cff;text-decoration:none;font-weight:600;">
             Ram Kumar
         </a>
-        &nbsp;|&nbsp; <i class="fas fa-phone"></i> Contact: +91-97364-38856
+        &nbsp;|&nbsp; <i class="fas fa-phone"></i> +91-97364-38856
     `;
     document.body.appendChild(footer);
 });
