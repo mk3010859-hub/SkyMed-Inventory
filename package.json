@@ -1,0 +1,39 @@
+{
+  "name": "skymed-erp",
+  "version": "7.0.0",
+  "description": "SkyMed ERP - Complete Inventory, Finance & Payroll Management System",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "backup": "node backend/utils/backup.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "erp",
+    "inventory",
+    "finance",
+    "payroll",
+    "skymed",
+    "healthcare",
+    "hospital-management"
+  ],
+  "author": "Ram Kumar",
+  "license": "Proprietary",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0",
+    "dotenv": "^16.0.3",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0",
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.3",
+    "node-cron": "^3.0.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
