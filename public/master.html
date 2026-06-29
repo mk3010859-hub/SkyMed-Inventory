@@ -53,6 +53,8 @@
         .btn-outline{background:transparent;border:1px solid #dce4ed;color:#3a5a7a}
         .btn-outline:hover{background:#f5f8fc}
         .btn-sm{padding:3px 10px;font-size:.7rem}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:6px 16px;border-radius:30px;cursor:pointer;font-size:.8rem;display:inline-flex;align-items:center;gap:5px;transition:.2s;font-weight:600}
+        .btn-logout:hover{background:#a13232;transform:scale(1.02)}
         
         .filter-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;background:#f7faff;border-radius:10px;border:1px solid #e8edf5;margin-bottom:12px}
         .filter-bar select,.filter-bar input{padding:4px 10px;border-radius:30px;border:1px solid #dce4ed;background:#fff;font-size:.75rem}
@@ -86,12 +88,17 @@
         .modal-actions .btn{padding:8px 24px}
         .empty-state{text-align:center;padding:30px;color:#7a8fa5}
         .empty-state i{font-size:1.6rem;opacity:.3;display:block;margin-bottom:8px}
+        .btn-logout{background:#c44545;color:#fff;border:none;padding:6px 16px;border-radius:30px;cursor:pointer;font-size:.8rem;display:inline-flex;align-items:center;gap:5px;transition:.2s;font-weight:600}
+        .btn-logout:hover{background:#a13232;transform:scale(1.02)}
         
         @media(max-width:768px){.sidebar{width:60px}.sidebar .logo span,.sidebar .logo small,.sidebar .nav a span,.sidebar .user .name,.sidebar .user .role,.sidebar .folder-info span{display:none}.sidebar .nav a{padding:10px 18px;justify-content:center}.sidebar .folder-info .sub{display:none}.main{padding:12px}.form-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
 
+<!-- ============================================================ -->
+<!-- 🔒 SESSION CHECK - FIXED                                      -->
+<!-- ============================================================ -->
 <script>
     (function() {
         if (!localStorage.getItem('jwt_token')) {
@@ -106,6 +113,18 @@
         sub.classList.toggle('open');
         if (arrow) {
             arrow.style.transform = sub.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    }
+
+    // ============================================================
+    // 🔓 LOGOUT FUNCTION
+    // ============================================================
+    function logoutUser() {
+        if (confirm('⚠️ Are you sure you want to logout?')) {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            sessionStorage.removeItem('skymed_logged_in');
+            window.location.href = 'login.html';
         }
     }
 
@@ -148,10 +167,11 @@
     
     <a href="provision.html"><i class="fas fa-calculator"></i> <span>Provision</span></a>
     <a href="payroll.html"><i class="fas fa-users"></i> <span>Payroll</span></a>
-   <a href="assets.html"><i class="fas fa-laptop"></i> <span>Assets</span></a>
-        <a href="imprest.html"><i class="fas fa-wallet"></i> <span>Imprest</span></a>
+    <a href="assets.html"><i class="fas fa-laptop"></i> <span>Assets</span></a>
+    <a href="imprest.html"><i class="fas fa-wallet"></i> <span>Imprest</span></a>
     <a href="deleted.html"><i class="fas fa-trash"></i> <span>Deleted</span></a>
     <a href="settings.html"><i class="fas fa-cog"></i> <span>Settings</span></a>
+    <a href="admin-requests.html"><i class="fas fa-user-check"></i> <span>Pending Requests</span></a>
 </div>
     <div class="folder-info" onclick="selectFolder()">
         <i class="fas fa-folder"></i> <span id="folderLabel">Select Folder</span>
@@ -174,6 +194,7 @@
             <button class="btn btn-outline" onclick="document.getElementById('csvUpload').click()"><i class="fas fa-upload"></i> Import</button>
             <button class="btn btn-outline" onclick="manualSave()"><i class="fas fa-save"></i> Save</button>
             <input type="file" id="csvUpload" accept=".csv,.xlsx" style="display:none" onchange="importMaster(event)">
+            <button class="btn btn-logout" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </div>
 
